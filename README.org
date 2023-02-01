@@ -1,7 +1,7 @@
 #+title: Pratham Path planner
 
 * Setup
-After cloning this repository, run:
+After cloning this repository, run: \\
 =git submodule update --init --recursive=
 
 all the libraries will also be updated
