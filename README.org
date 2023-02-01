@@ -5,3 +5,10 @@ After cloning this repository, run: \\
 =git submodule update --init --recursive=
 
 all the libraries will also be updated
+
+* Usage
+=ros2 run pratham_path_planner planner_node=
+
+* Subscriptions
+
+* Publishes
