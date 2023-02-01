@@ -23,10 +23,12 @@ set_target_properties(${TARGET} PROPERTIES LINKER_LANGUAGE Cxx)
 find_package(std_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 ament_target_dependencies(planner_node
   "rclcpp"
   "std_msgs"
   "nav_msgs"
+  "geometry_msgs"
   )
 
 install(TARGETS planner_node

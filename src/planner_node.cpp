@@ -13,14 +13,29 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-int main(int argc, char ** argv)
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include "geometry_msgs/msg/pose.hpp"
+
+#define GRID_SIZE 320
+
+typedef nav_msgs::msg::OccupancyGrid OccupancyGridMsg;
+typedef geometry_msgs::msg::Pose PoseMsg;
+
+/*
+ * TODO
+ * - start a ros2 node
+ * - subscribe to /tf, /costmap, and /goal
+ * - create a publisher to the /path/raw topic
+ * */
+
+int main(int argc, char **argv)
 {
   (void) argc;
   (void) argv;
-  constexpr int n = 201;
+  constexpr int n = GRID_SIZE;
   std::vector<std::vector<int>> grid(n, std::vector<int>(n, 0));
   MakeGrid(grid);
-  PrintGrid(grid);
+  // PrintGrid(grid);
   std::random_device rd;   // obtain a random number from hardware
   std::mt19937 eng(rd());  // seed the generator
   std::uniform_int_distribution<int> distr(0, n - 1);  // define the range
@@ -33,7 +48,7 @@ int main(int argc, char ** argv)
   goal.id_ = goal.x_ * n + goal.y_;
   start.h_cost_ = abs(start.x_ - goal.x_) + abs(start.y_ - goal.y_);
 
-  DStarLite dstar_lite(grid);
+ DStarLite dstar_lite(grid);
   {
     const auto [path_found, path_vector] = dstar_lite.Plan(start, goal);
     for (int i=0; i<path_vector.size(); i++)

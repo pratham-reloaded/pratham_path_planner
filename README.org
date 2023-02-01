@@ -1,7 +1,7 @@
 #+title: Pratham Path planner
 
 * Setup
-After cloning this repository, run: \\
+After cloning this repository, run:\\
 =git submodule update --init --recursive=
 
 all the libraries will also be updated
@@ -10,5 +10,15 @@ all the libraries will also be updated
 =ros2 run pratham_path_planner planner_node=
 
 * Subscriptions
+** /costmap_topic (nav_msgs/OccupancyGrid)
+The yasmap which has to be read
+
+** /tf
+Needs to subscribe to the tf tree for the location of `map_frame`, `base_link`. This will be used to get the start Node on the grid
+
+** /path_planner_goal (geometry_msgs/Pose)
+Accept a goal pose (in the `odom_frame`, or the `base_link` frame, or the `map_frame`). This can be converted to the goal Node on the grid
 
 * Publishes
+** /path (nav_msgs/Path)
+The path which has to be followed by pratham to reach the goal state given in `/path_planner_goal`
