@@ -12,14 +12,25 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 add_executable(planner_node src/planner_node.cpp)
+
 target_include_directories(planner_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/path_planning_lib/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/path_planning_lib/lib/utils/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(planner_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+set_target_properties(${TARGET} PROPERTIES LINKER_LANGUAGE Cxx) 
+find_package(std_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
+ament_target_dependencies(planner_node
+  "rclcpp"
+  "std_msgs"
+  "nav_msgs"
+  )
 
 install(TARGETS planner_node
   DESTINATION lib/${PROJECT_NAME})
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

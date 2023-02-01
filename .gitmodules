@@ -1,0 +1,3 @@
+[submodule "include/path_planning_lib"]
+	path = include/path_planning_lib
+	url = https://github.com/pratham-reloaded/path_planning_lib.git
