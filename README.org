@@ -20,5 +20,7 @@ Needs to subscribe to the tf tree for the location of `map_frame`, `base_link`. 
 Accept a goal pose (in the `odom_frame`, or the `base_link` frame, or the `map_frame`). This can be converted to the goal Node on the grid
 
 * Publishes
-** /path (nav_msgs/Path)
+** /path/raw (Array)
 The path which has to be followed by pratham to reach the goal state given in `/path_planner_goal`
+
+** /path/abs (nav_msgs/Path)
