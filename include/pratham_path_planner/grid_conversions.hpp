@@ -15,12 +15,31 @@ namespace grid_conversions {
         point_t(float a, float b) { this->x = a; this->y = b; }
     };
 
-    std::tuple<bool, point_t> map_to_grid(float x, float y) {
+    struct indices_t {
+        int x, y;
+        indices_t(int a, int b) {this->x = a; this->y = b;}
+    };
+
+    bool valid_indices(indices_t indices) {
+        if (indices.x < 0 || indices.y < 0) {
+            return false;
+        } else if (indices.x > GRID_SIZE || indices.y > GRID_SIZE) {
+            return false;
+        }
+        return true;
+    }
+
+    std::tuple<bool, indices_t> map_to_grid(float x, float y) {
         int delta_x = x/(1.875*0.01);
         int delta_y = y/(1.875*0.01);
 
-        return {true, point_t(GRID_ORIGIN_X - delta_x,
-                              GRID_ORIGIN_Y - delta_y)};
+        indices_t grid_indices = indices_t(GRID_ORIGIN_X - delta_x,
+                                           GRID_ORIGIN_Y - delta_y);
+        if (valid_indices(grid_indices)) {
+            return {true, grid_indices};
+        } else {
+            return {false, grid_indices};
+        }
     }
 
     std::tuple<bool, point_t> grid_to_map(unsigned int x, unsigned int y) {
