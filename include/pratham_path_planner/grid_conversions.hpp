@@ -1,5 +1,9 @@
 #include <stdio.h>
+#include <iostream>
+#include <memory>
+#include <thread>
 #include <tuple>
+#include <vector>
 
 #define GRID_SIZE 320
 #define GRID_LEN 6 // meters
@@ -49,5 +53,44 @@ namespace grid_conversions {
         float map_frame_x = (delta_x * 1.875)*0.01;
         float map_frame_y = (delta_y * 1.875)*0.01;
         return {true, point_t(map_frame_x, map_frame_y)};
+    }
+
+    bool grid_indices_to_map_points(const std::vector<indices_t> &grid_indices,
+                                   std::vector<point_t> &converted_points) {
+        if (grid_indices.size() != converted_points.size())
+            return false;
+        for (int i=0; i < grid_indices.size(); i++) {
+            auto [valid_point, converted_point] = grid_to_map(grid_indices[i].x, grid_indices[i].y);
+            if (valid_point) {
+                converted_points[i] = converted_point;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool grid_indices_to_map_points_threaded(const std::vector<indices_t> &grid_indices,
+                                             std::vector<point_t> &converted_points) {
+        std::vector<std::thread> threads;
+        auto convert_fn = [](int i,
+                             const std::vector<indices_t> &grid_indices,
+                             std::vector<point_t> &converted_points) {
+            auto [valid_point, converted_point] = grid_to_map(grid_indices[i].x, grid_indices[i].y);
+            converted_points[i] = converted_point;
+        };
+        for (int i=0; i < grid_indices.size(); i++) {
+            threads.push_back(std::thread([](int i, const std::vector<indices_t> &grid_indices, std::vector<point_t> &converted_points) {
+                auto [valid_point, converted_point] = grid_to_map(grid_indices[i].x, grid_indices[i].y);
+                converted_points[i] = converted_point;
+                if (!valid_point)
+                    return false;
+            }, i, std::ref(grid_indices), std::ref(converted_points)));
+        }
+
+        for(int i=0; i < grid_indices.size(); i++) {
+            threads[i].join();
+        }
+        return true;
     }
 }
