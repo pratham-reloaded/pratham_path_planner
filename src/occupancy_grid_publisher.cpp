@@ -29,10 +29,29 @@ class OccupancyGrid : public rclcpp::Node
 {
     public:
         OccupancyGrid(): rclcpp::Node("Test_Occupancy_Grid")
+    {
 
-        goal_publisher=this->create_publisher<geometry_msgs::msg::Pose>("goal_local",10)        
+        // goal_publisher=this->create_publisher<geometry_msgs::msg::Pose>("goal_local",10)        
         grid_publisher=this->create_publisher<nav_msgs::msg::OccupancyGrid>("yasmap",10);
-        grid_publisher_timer=this->create_wall_timer(50ms, std::bind(&OccupancyGrid::publisher_callback));
+        grid_publisher_timer=this->create_wall_timer(50ms, std::bind(&OccupancyGrid::publisher_callback,this));
+
+    }   
+
+    private:
+        void publisher_callback()
+        {
+            auto map=nav_msgs::msg::OccupancyGrid();
+            map.header.frame_id="map_local";
+            map.info.resolution=0.01875;
+            map.info.width=320;
+            map.info.height=320;
+            map.origin.position.x=160;
+            map.origin.position.y=60;
+            
+
+
+
+        }
 
 
         
