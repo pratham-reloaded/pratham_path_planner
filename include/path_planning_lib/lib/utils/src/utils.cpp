@@ -14,9 +14,9 @@
 // constants
 constexpr int spacing_for_grid = 10;
 
-void Node::PrintStatus() const {
+void Grid::PrintStatus() const {
   std::cout << "--------------" << '\n'
-            << "Node          :" << '\n'
+            << "Grid          :" << '\n'
             << "x             : " << x_ << '\n'
             << "y             : " << y_ << '\n'
             << "Cost          : " << cost_ << '\n'
@@ -26,41 +26,41 @@ void Node::PrintStatus() const {
             << "--------------" << '\n';
 }
 
-Node Node::operator+(const Node& p) const {
-  Node tmp;
+Grid Grid::operator+(const Grid& p) const {
+  Grid tmp;
   tmp.x_ = this->x_ + p.x_;
   tmp.y_ = this->y_ + p.y_;
   tmp.cost_ = this->cost_ + p.cost_;
   return tmp;
 }
 
-Node Node::operator-(const Node& p) const {
-  Node tmp;
+Grid Grid::operator-(const Grid& p) const {
+  Grid tmp;
   tmp.x_ = this->x_ - p.x_;
   tmp.y_ = this->y_ - p.y_;
   return tmp;
 }
 
-bool Node::operator==(const Node& p) const {
+bool Grid::operator==(const Grid& p) const {
   return this->x_ == p.x_ && this->y_ == p.y_;
 }
 
-bool CompareCoordinates(const Node& p1, const Node& p2) {
+bool CompareCoordinates(const Grid& p1, const Grid& p2) {
   return p1.x_ == p2.x_ && p1.y_ == p2.y_;
 }
-bool checkOutsideBoundary(const Node& node, const int n) {
+bool checkOutsideBoundary(const Grid& node, const int n) {
   return (node.x_ < 0 || node.y_ < 0
     || node.x_ >= n || node.y_ >= n);
 }
 
 
-bool compare_cost::operator()(const Node& p1, const Node& p2) const {
+bool compare_cost::operator()(const Grid& p1, const Grid& p2) const {
   // Can modify this to allow tie breaks based on heuristic cost if required
   return p1.cost_ + p1.h_cost_ > p2.cost_ + p2.h_cost_ ||
          (p1.cost_ + p1.h_cost_ == p2.cost_ + p2.h_cost_ &&
           p1.h_cost_ >= p2.h_cost_);
 }
-bool compare_coordinates::operator()(const Node& p1, const Node& p2)  const {
+bool compare_coordinates::operator()(const Grid& p1, const Grid& p2)  const {
   return p1.x_ == p2.x_ && p1.y_ == p2.y_;
 }
 
@@ -69,12 +69,12 @@ bool compare_coordinates::operator()(const Node& p1, const Node& p2)  const {
 // TODO(vss): Consider adding option for motion restriction in RRT and RRT* by
 //       replacing new node with nearest node that satisfies motion constraints
 
-std::vector<Node> GetMotion() {
+std::vector<Grid> GetMotion() {
   return {
-    Node(0, 1, 1, 0, 0, 0),
-    Node(1, 0, 1, 0, 0, 0),
-    Node(0, -1, 1, 0, 0, 0),
-    Node(-1, 0, 1, 0, 0, 0)
+    Grid(0, 1, 1, 0, 0, 0),
+    Grid(1, 0, 1, 0, 0, 0),
+    Grid(0, -1, 1, 0, 0, 0),
+    Grid(-1, 0, 1, 0, 0, 0)
     // Node(1, 1, sqrt(2), 0, 0, 0),
     // Node(1, -1, sqrt(2), 0, 0, 0),
     // Node(-1, 1, sqrt(2), 0, 0, 0),
@@ -100,8 +100,8 @@ void MakeGrid(std::vector<std::vector<int>>& grid) {
   }
 }
 
-void PrintPath(const std::vector<Node>& path_vector, const Node& start,
-               const Node& goal, std::vector<std::vector<int>>& grid) {
+void PrintPath(const std::vector<Grid>& path_vector, const Grid& start,
+               const Grid& goal, std::vector<std::vector<int>>& grid) {
 #ifdef CUSTOM_DEBUG_HELPER_FUNCION
   if (path_vector.empty()) {
     std::cout << "No path exists" << '\n';
@@ -134,10 +134,10 @@ void PrintPath(const std::vector<Node>& path_vector, const Node& start,
 }
 
 void PrintCost(const std::vector<std::vector<int>>& grid,
-               const std::vector<Node>& point_list) {
+               const std::vector<Grid>& point_list) {
 #ifdef CUSTOM_DEBUG_HELPER_FUNCION
   int n = grid.size();
-  std::vector<Node>::const_iterator it_v;
+  std::vector<Grid>::const_iterator it_v;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (it_v = point_list.begin(); it_v != point_list.end(); ++it_v) {
@@ -155,8 +155,8 @@ void PrintCost(const std::vector<std::vector<int>>& grid,
   #endif  // CUSTOM_DEBUG_HELPER_FUNCION
 }
 
-void PrintPathInOrder(const std::vector<Node>& path_vector,
-                      const Node& /*start*/, const Node& goal,
+void PrintPathInOrder(const std::vector<Grid>& path_vector,
+                      const Grid& /*start*/, const Grid& goal,
                       std::vector<std::vector<int>>& grid) {
 #ifdef CUSTOM_DEBUG_HELPER_FUNCION
   if (path_vector.empty()) {
@@ -187,7 +187,7 @@ void LazyPQ::clear() {
   }
 }
 
-void LazyPQ::insert(const NodeKeyPair& t) {
+void LazyPQ::insert(const GridKeyPair& t) {
   if(auto p = s.insert(t); !p.second) {
     s.erase(t);
     s.insert(t);
@@ -227,7 +227,7 @@ void LazyPQ::pop() {
   }
 }
 
-const NodeKeyPair& LazyPQ::top() const {
+const GridKeyPair& LazyPQ::top() const {
   return pq.top();
 }
 
@@ -239,11 +239,11 @@ bool LazyPQ::empty() const {
   return s.empty();
 }
 
-bool LazyPQ::isElementInStruct(const NodeKeyPair& t) const {
+bool LazyPQ::isElementInStruct(const GridKeyPair& t) const {
   return s.find(t) != s.end();
 }
 
-void LazyPQ::remove(const NodeKeyPair& t) {
+void LazyPQ::remove(const GridKeyPair& t) {
   if (s.find(t) != s.end()) {
     s.erase(t);
   }

@@ -39,7 +39,7 @@ class DStarLite : public Planner {
               between calls to Plan()
    */
   void SetDynamicObstacles(const bool create_random_obstacles = false,
-                           const std::unordered_map<int, std::vector<Node>>&
+                           const std::unordered_map<int, std::vector<Grid>>&
                                time_discovered_obstacles = {}) override;
 
   /**
@@ -53,8 +53,8 @@ class DStarLite : public Planner {
               Checks for discovered obstacles
               Replans as necessary
    */
-  std::tuple<bool, std::vector<Node>> Plan(const Node& start,
-                                           const Node& goal) override;
+  std::tuple<bool, std::vector<Grid>> Plan(const Grid& start,
+                                           const Grid& goal) override;
 
  private:
   /**
@@ -62,7 +62,7 @@ class DStarLite : public Planner {
    * @param s Node for whicht eh key values are to be calculated
    * @return Key containing values for s
    */
-  Key CalculateKey(const Node& s) const;
+  Key CalculateKey(const Grid& s) const;
 
   /**
    * @brief Get the predecessors of a node
@@ -71,7 +71,7 @@ class DStarLite : public Planner {
    * @details implemented for a grid with undirected edges,
               hence the predecessors are the neighbours
    */
-  std::vector<Node> GetPred(const Node& u) const;
+  std::vector<Grid> GetPred(const Grid& u) const;
 
   /**
    * @brief Get the successors of a node
@@ -80,7 +80,7 @@ class DStarLite : public Planner {
    * @details implemented for a grid with undirected edges,
               hence the successors are the neighbours
    */
-  std::vector<Node> GetSucc(const Node& u) const;
+  std::vector<Grid> GetSucc(const Grid& u) const;
 
   /**
    * @brief Returns all the neighours for a given node
@@ -88,7 +88,7 @@ class DStarLite : public Planner {
    * @return neighbours
    * @details all nodes that can be reached by use of a single motion primitive
    */
-  std::vector<Node> GetNeighbours(const Node& u) const;
+  std::vector<Grid> GetNeighbours(const Grid& u) const;
 
   /**
    * @brief Cost of traveresing the edge between 2 nodes
@@ -99,7 +99,7 @@ class DStarLite : public Planner {
               cost for the motion primitive, unless one of the nodes is an
               obstacle, in which case it is std::numeric_limits<double>::max()
    */
-  double C(const Node& s1, const Node& s2) const;
+  double C(const Grid& s1, const Grid& s2) const;
 
   /**
    * @brief Initialize function based on D* Lite algorithm
@@ -116,7 +116,7 @@ class DStarLite : public Planner {
    * @details Please see the algorithm implementation page
    *          for details about how the algorithm works
    */
-  void UpdateVertex(const Node& u);
+  void UpdateVertex(const Grid& u);
 
   /**
    * @brief Compare key function based on D* Lite algorithm
@@ -143,14 +143,14 @@ class DStarLite : public Planner {
    * @return vector of all nodes that have the changed in the graph
    *         at the given time step
    */
-  std::vector<Node> DetectChanges();
+  std::vector<Grid> DetectChanges();
 
   /**
    * @brief Checks whether the given node is an obstacle
    * @param n node
    * @return bool whether the given node is an obstacle
    */
-  bool IsObstacle(const Node& n) const;
+  bool IsObstacle(const Grid& n) const;
 
   /**
    * @brief Heuristic function based on D* Lite algorithm
@@ -158,7 +158,7 @@ class DStarLite : public Planner {
    * @param n2 node 2
    * @return the heuristic cost of travelling from one node 1 to node 2
    */
-  static double H(const Node& n1, const Node& n2);
+  static double H(const Grid& n1, const Grid& n2);
 
   /**
    * @brief Create a square grid of size n and set each value to
@@ -169,10 +169,10 @@ class DStarLite : public Planner {
 
   std::vector<std::vector<double>> rhs_;
   std::vector<std::vector<double>> g_;
-  std::unordered_map<int, std::vector<Node>> time_discovered_obstacles_{};
-  std::vector<Node> motions_{};
+  std::unordered_map<int, std::vector<Grid>> time_discovered_obstacles_{};
+  std::vector<Grid> motions_{};
   LazyPQ U_;
-  Node start_, goal_, last_;
+  Grid start_, goal_, last_;
   double k_m_ = 0;
   Key k_old_{0, 0};
   int time_step_ = 0;

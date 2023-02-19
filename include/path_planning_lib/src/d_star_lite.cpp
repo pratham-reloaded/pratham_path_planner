@@ -11,16 +11,16 @@
 
 constexpr int pause_time = 500;  // milliseconds
 
-bool DStarLite::IsObstacle(const Node& n) const {
+bool DStarLite::IsObstacle(const Grid& n) const {
   return grid_[n.x_][n.y_] == 1;
 }
 
-double DStarLite::H(const Node& n1, const Node& n2) {
+double DStarLite::H(const Grid& n1, const Grid& n2) {
   return std::sqrt(std::pow(n1.x_ - n2.x_, 2) + std::pow(n1.y_ - n2.y_, 2));
 }
 
-std::vector<Node> DStarLite::GetNeighbours(const Node& u) const {
-  std::vector<Node> neighbours;
+std::vector<Grid> DStarLite::GetNeighbours(const Grid& u) const {
+  std::vector<Grid> neighbours;
   for (const auto& m : motions_) {
     if (const auto neighbour = u + m;
         !checkOutsideBoundary(neighbour, grid_.size())) {
@@ -30,27 +30,27 @@ std::vector<Node> DStarLite::GetNeighbours(const Node& u) const {
   return neighbours;
 }
 
-std::vector<Node> DStarLite::GetPred(const Node& u) const {
+std::vector<Grid> DStarLite::GetPred(const Grid& u) const {
   return GetNeighbours(u);
 }
 
-std::vector<Node> DStarLite::GetSucc(const Node& u) const {
+std::vector<Grid> DStarLite::GetSucc(const Grid& u) const {
   return GetNeighbours(u);
 }
 
-double DStarLite::C(const Node& s1, const Node& s2) const {
+double DStarLite::C(const Grid& s1, const Grid& s2) const {
   if (IsObstacle(s1) || IsObstacle(s2)) {
     return std::numeric_limits<double>::max();
   }
-  const Node delta{s2.x_ - s1.x_, s2.y_ - s1.y_};
+  const Grid delta{s2.x_ - s1.x_, s2.y_ - s1.y_};
   return std::find_if(std::begin(motions_), std::end(motions_),
-                      [&delta](const Node& motion) {
+                      [&delta](const Grid& motion) {
                         return CompareCoordinates(motion, delta);
                       })
       ->cost_;
 }
 
-Key DStarLite::CalculateKey(const Node& s) const {
+Key DStarLite::CalculateKey(const Grid& s) const {
   return Key{std::min(g_[s.x_][s.y_], rhs_[s.x_][s.y_]) + H(start_, s) + k_m_,
              std::min(g_[s.x_][s.y_], rhs_[s.x_][s.y_])};
 }
@@ -68,10 +68,10 @@ void DStarLite::Initialize() {
   rhs_ = CreateGrid();
   g_ = CreateGrid();
   rhs_[goal_.x_][goal_.y_] = 0;
-  U_.insert(NodeKeyPair{goal_, CalculateKey(goal_)});
+  U_.insert(GridKeyPair{goal_, CalculateKey(goal_)});
 }
 
-void DStarLite::UpdateVertex(const Node& u) {
+void DStarLite::UpdateVertex(const Grid& u) {
   if (grid_[u.x_][u.y_] == 0) {
     grid_[u.x_][u.y_] = 2;
   }
@@ -84,10 +84,10 @@ void DStarLite::UpdateVertex(const Node& u) {
     }
   }
   if (U_.isElementInStruct({u, {}})) {
-    U_.remove(NodeKeyPair{u, Key()});
+    U_.remove(GridKeyPair{u, Key()});
   }
   if (rhs_[u.x_][u.y_] != g_[u.x_][u.y_]) {
-    U_.insert(NodeKeyPair{u, CalculateKey(u)});
+    U_.insert(GridKeyPair{u, CalculateKey(u)});
   }
 }
 
@@ -95,10 +95,10 @@ void DStarLite::ComputeShortestPath() {
   while ((!U_.empty() && U_.top().key < CalculateKey(start_)) ||
          (rhs_[start_.x_][start_.y_] != g_[start_.x_][start_.y_])) {
     k_old_ = U_.top().key;
-    const Node u = U_.top().node;
+    const Grid u = U_.top().node;
     U_.pop();
     if (const Key u_key = CalculateKey(u); k_old_ < u_key) {
-      U_.insert(NodeKeyPair{u, u_key});
+      U_.insert(GridKeyPair{u, u_key});
     } else if (g_[u.x_][u.y_] > rhs_[u.x_][u.y_]) {
       g_[u.x_][u.y_] = rhs_[u.x_][u.y_];
       for (const auto& s : GetPred(u)) {
@@ -114,8 +114,8 @@ void DStarLite::ComputeShortestPath() {
   }
 }
 
-std::vector<Node> DStarLite::DetectChanges() {
-  std::vector<Node> obstacles;
+std::vector<Grid> DStarLite::DetectChanges() {
+  std::vector<Grid> obstacles;
   if (time_discovered_obstacles_.find(time_step_) !=
       time_discovered_obstacles_.end()) {
     const auto discovered_obstacles_at_time =
@@ -138,7 +138,7 @@ std::vector<Node> DStarLite::DetectChanges() {
     if (!((start_.x_ == x && start_.y_ == y) ||
           (goal_.x_ == x && goal_.y_ == y))) {
       grid_[x][y] = 1;
-      obstacles.emplace_back(Node(x, y));
+      obstacles.emplace_back(Grid(x, y));
     }
   }
   return obstacles;
@@ -146,18 +146,18 @@ std::vector<Node> DStarLite::DetectChanges() {
 
 void DStarLite::SetDynamicObstacles(
     const bool create_random_obstacles,
-    const std::unordered_map<int, std::vector<Node>>&
+    const std::unordered_map<int, std::vector<Grid>>&
         time_discovered_obstacles) {
   create_random_obstacles_ = create_random_obstacles;
   time_discovered_obstacles_ = time_discovered_obstacles;
 }
 
-std::tuple<bool, std::vector<Node>> DStarLite::Plan(const Node& start,
-                                                    const Node& goal) {
+std::tuple<bool, std::vector<Grid>> DStarLite::Plan(const Grid& start,
+                                                    const Grid& goal) {
   grid_ = original_grid_;
   start_ = start;
   goal_ = goal;
-  std::vector<Node> path;
+  std::vector<Grid> path;
   path.push_back(start_);
   grid_[start_.x_][start_.y_] = 4;
   // PrintGrid(grid_);
@@ -205,10 +205,10 @@ std::tuple<bool, std::vector<Node>> DStarLite::Plan(const Node& start,
   for (int i = 1; i < path.size(); i++) {
     path[i].id_ = path[i].x_ * n_ + path[i].y_;
     const auto delta =
-        Node(path[i].x_ - path[i - 1].x_, path[i].y_ - path[i - 1].y_);
+        Grid(path[i].x_ - path[i - 1].x_, path[i].y_ - path[i - 1].y_);
     path[i].cost_ = path[i - 1].cost_ +
                     std::find_if(std::begin(motions_), std::end(motions_),
-                                 [&delta](const Node& motion) {
+                                 [&delta](const Grid& motion) {
                                    return CompareCoordinates(motion, delta);
                                  })
                         ->cost_;
@@ -232,8 +232,8 @@ int main() {
   std::mt19937 eng(rd());  // seed the generator
   std::uniform_int_distribution<int> distr(0, n - 1);  // define the range
 
-  Node start(distr(eng), distr(eng), 0, 0, 0, 0);
-  Node goal(distr(eng), distr(eng), 0, 0, 0, 0);
+  Grid start(distr(eng), distr(eng), 0, 0, 0, 0);
+  Grid goal(distr(eng), distr(eng), 0, 0, 0, 0);
 
   start.id_ = start.x_ * n + start.y_;
   start.pid_ = start.x_ * n + start.y_;
@@ -249,13 +249,13 @@ int main() {
   goal.PrintStatus();
 
   const bool create_random_obstacles = false;
-  const std::unordered_map<int, std::vector<Node>> time_discovered_obstacles{
-      {1, {Node(1, 1)}},
-      {2, {Node(2, 2)}},
-      {3, {Node(5, 5)}},
+  const std::unordered_map<int, std::vector<Grid>> time_discovered_obstacles{
+      {1, {Grid(1, 1)}},
+      {2, {Grid(2, 2)}},
+      {3, {Grid(5, 5)}},
       {4,
-       {Node(6, 6), Node(7, 7), Node(8, 8), Node(9, 9), Node(10, 10),
-        Node(7, 6)}}};
+       {Grid(6, 6), Grid(7, 7), Grid(8, 8), Grid(9, 9), Grid(10, 10),
+        Grid(7, 6)}}};
 
   DStarLite d_star_lite(grid);
   d_star_lite.SetDynamicObstacles(create_random_obstacles,

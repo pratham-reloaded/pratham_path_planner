@@ -32,7 +32,7 @@
  * @param id_ Node's id
  * @param pid_ Node's parent's id
  */
-class Node {
+class Grid {
   // Variables used here are constantly accessed and checked; leaving public for
   // now.
  public:
@@ -58,7 +58,7 @@ class Node {
    * @param id Node's id
    * @param pid Node's parent's id
    */
-  Node(const int x = 0, const int y = 0, const double cost = 0,
+  Grid(const int x = 0, const int y = 0, const double cost = 0,
        const double h_cost = 0, const int id = 0, const int pid = 0) :
        x_(x), y_(y), cost_(cost), h_cost_(h_cost), id_(id), pid_(pid) {}
 
@@ -73,28 +73,28 @@ class Node {
    * @param p node
    * @return Node with current node's and input node p's values added
    */
-  Node operator+(const Node& p) const;
+  Grid operator+(const Grid& p) const;
 
   /**
    * @brief Overloading operator - for Node class
    * @param p node
    * @return Node with current node's and input node p's values subtracted
    */
-  Node operator-(const Node& p) const;
+  Grid operator-(const Grid& p) const;
 
   /**
    * @brief Overloading operator == for Node class
    * @param p node
    * @return bool whether current node equals input node
    */
-  bool operator==(const Node& p) const;
+  bool operator==(const Grid& p) const;
 };
 
 /**
  * @brief Hash for node struct
  */
 template<>
-class std::hash<Node> {
+class std::hash<Grid> {
 public:
 
   /**
@@ -102,7 +102,7 @@ public:
    * @param n Node for which the hash is to be calculated
    * @return hash value
    */
-  size_t operator () (const Node& n) const {
+  size_t operator () (const Grid& n) const {
     return std::hash<int>()(n.x_) ^ std::hash<int>()(n.y_);
   }
 };
@@ -110,7 +110,7 @@ public:
 /**
  * @brief Hash for node struct that returns node id
  */
-class NodeIdAsHash {
+class GridIdAsHash {
 public:
 
   /**
@@ -119,7 +119,7 @@ public:
    * @return hash value
    * @details the hash returned is the node id
    */
-  size_t operator () (const Node& n) const {
+  size_t operator () (const Grid& n) const {
     return n.id_;
   }
 };
@@ -137,7 +137,7 @@ struct compare_cost {
    * @return Returns whether cost to get to node 1 is greater than the cost to
    * get to node 2
    */
-  bool operator()(const Node& p1, const Node& p2) const;
+  bool operator()(const Grid& p1, const Grid& p2) const;
 };
 
 /**
@@ -152,14 +152,14 @@ struct compare_coordinates {
    * @return Returns whether cost to get to node 1 is greater than the cost to
    * get to node 2
    */
-  bool operator()(const Node& p1, const Node& p2) const;
+  bool operator()(const Grid& p1, const Grid& p2) const;
 };
 
 /**
  * @brief Get permissible motion primatives for the bot
  * @return vector of permissible motions
  */
-std::vector<Node> GetMotion();
+std::vector<Grid> GetMotion();
 
 /**
  * @brief Prints the grid passed, highlighting the path taken
@@ -169,8 +169,8 @@ std::vector<Node> GetMotion();
  * @param grid Modify this grid
  * @return void
  */
-void PrintPath(const std::vector<Node>& path_vector, const Node& start_,
-               const Node& goal_, std::vector<std::vector<int>>& grid);
+void PrintPath(const std::vector<Grid>& path_vector, const Grid& start_,
+               const Grid& goal_, std::vector<std::vector<int>>& grid);
 
 /**
  * @brief Prints out the cost for reaching points on the grid in the grid shape
@@ -180,7 +180,7 @@ void PrintPath(const std::vector<Node>& path_vector, const Node& start_,
  * @return void
  */
 void PrintCost(const std::vector<std::vector<int>>& grid,
-               const std::vector<Node>& point_list);
+               const std::vector<Grid>& point_list);
 
 /**
 * @brief Creates a random grid of a given size
@@ -198,8 +198,8 @@ void MakeGrid(std::vector<std::vector<int>>& grid);
  * @param grid Modify this grid
  * @return void
  */
-void PrintPathInOrder(const std::vector<Node>& path_vector, const Node& start,
-                      const Node& goal, std::vector<std::vector<int>>& grid);
+void PrintPathInOrder(const std::vector<Grid>& path_vector, const Grid& start,
+                      const Grid& goal, std::vector<std::vector<int>>& grid);
 
 /**
  * @brief compare coordinates between 2 nodes
@@ -207,7 +207,7 @@ void PrintPathInOrder(const std::vector<Node>& path_vector, const Node& start,
  * @param p2 node 2
  * @return whether the two nodes are for the same coordinates
  */
-bool CompareCoordinates(const Node& p1, const Node& p2);
+bool CompareCoordinates(const Grid& p1, const Grid& p2);
 
 /**
  * @brief checks whether the node is outside the boundary of the grid
@@ -215,7 +215,7 @@ bool CompareCoordinates(const Node& p1, const Node& p2);
  * @param n size of the grid
  * @return whether the node is outside the boundary of the grid
  */
-bool checkOutsideBoundary(const Node& node, const int n);
+bool checkOutsideBoundary(const Grid& node, const int n);
 
 template<typename T,
          typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type
@@ -321,31 +321,31 @@ struct Key {
  * @brief Struct to contain the Node Key pairs used by the priority queue in
  *        the D* Lite algorithm
  */
-struct NodeKeyPair {
-  Node node;
+struct GridKeyPair {
+  Grid node;
   Key key;
 };
 
-struct CompareNodeKeyPairKeys {
-  bool operator()(const NodeKeyPair& nkp1, const NodeKeyPair& nkp2) const {
+struct CompareGridKeyPairKeys {
+  bool operator()(const GridKeyPair& nkp1, const GridKeyPair& nkp2) const {
     return nkp1.key == nkp2.key;
   }
 };
 
-struct CompareNodeKeyPairCoordinates {
-  bool operator()(const NodeKeyPair& nkp1, const NodeKeyPair& nkp2) const {
+struct CompareGridKeyPairCoordinates {
+  bool operator()(const GridKeyPair& nkp1, const GridKeyPair& nkp2) const {
     return CompareCoordinates(nkp1.node, nkp2.node);
   }
 };
 
-struct CompareNodeKeyPairCoordinatesAndKeys {
-  bool operator()(const NodeKeyPair& nkp1, const NodeKeyPair& nkp2) const {
+struct CompareGridKeyPairCoordinatesAndKeys {
+  bool operator()(const GridKeyPair& nkp1, const GridKeyPair& nkp2) const {
     return CompareCoordinates(nkp1.node, nkp2.node) && nkp1.key == nkp2.key;
   }
 };
 
 template <>
-class std::greater<NodeKeyPair> {
+class std::greater<GridKeyPair> {
  public:
    /**
     * @brief Overload () operator for std::greater to use for comparison by
@@ -355,21 +355,21 @@ class std::greater<NodeKeyPair> {
     * @return result of comparison
     * @details Compares the key values
     */
-  bool operator()(const NodeKeyPair& nk1, const NodeKeyPair& nk2) const {
+  bool operator()(const GridKeyPair& nk1, const GridKeyPair& nk2) const {
     return nk1.key > nk2.key;
   }
 };
 
 template <>
-class std::hash<NodeKeyPair> {
+class std::hash<GridKeyPair> {
  public:
   /**
    * @brief Hash function for the node key pair
    * @param nkp node key pair who's jas is to be calculated
    * @return hash value
    */
-  size_t operator()(const NodeKeyPair& nkp) const {
-    return std::hash<Node>()(nkp.node);
+  size_t operator()(const GridKeyPair& nkp) const {
+    return std::hash<Grid>()(nkp.node);
   }
 };
 
@@ -391,7 +391,7 @@ public:
    * @brief Insert into the LazyPQ
    * @return void
    */
-  void insert(const NodeKeyPair& t);
+  void insert(const GridKeyPair& t);
 
   /**
    * @brief pop the top element from the LazyPQ
@@ -403,7 +403,7 @@ public:
    * @brief Returns the top element of the LazyPQ
    * @return reference to the top value in the LazyPQ
    */
-  const NodeKeyPair& top() const;
+  const GridKeyPair& top() const;
 
   /**
    * @brief Number of elements in the LazyPQ
@@ -421,17 +421,17 @@ public:
    * @brief Checks whether the element is in the LazyPQ
    * @return bool whether the element is in the LazyPQ
    */
-  bool isElementInStruct(const NodeKeyPair& t) const;
+  bool isElementInStruct(const GridKeyPair& t) const;
 
   /**
    * @brief Remove an element from the LazyPQ if it exists
    * @return void
    */
-  void remove(const NodeKeyPair& t);
+  void remove(const GridKeyPair& t);
 
 private:
-  std::priority_queue<NodeKeyPair, std::vector<NodeKeyPair>, std::greater<NodeKeyPair>> pq;
-  std::unordered_set<NodeKeyPair, std::hash<NodeKeyPair>, CompareNodeKeyPairCoordinates> s; // Needs to just compare the coordinates and
+  std::priority_queue<GridKeyPair, std::vector<GridKeyPair>, std::greater<GridKeyPair>> pq;
+  std::unordered_set<GridKeyPair, std::hash<GridKeyPair>, CompareGridKeyPairCoordinates> s; // Needs to just compare the coordinates and
 };
 
 #endif  // UTILS_H

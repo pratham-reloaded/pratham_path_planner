@@ -71,8 +71,8 @@ class Planner {
    * @return tuple contatining a bool as to whether a path was found, and the
    * path
    */
-  virtual std::tuple<bool, std::vector<Node>> Plan(const Node& start,
-                                                   const Node& goal) = 0;
+  virtual std::tuple<bool, std::vector<Grid>> Plan(const Grid& start,
+                                                   const Grid& goal) = 0;
 
   /**
    * @brief Sets the time discovered obstacles and the option that allows
@@ -87,7 +87,7 @@ class Planner {
    */
   virtual void SetDynamicObstacles(
       const bool create_random_obstacles = false,
-      const std::unordered_map<int, std::vector<Node>>&
+      const std::unordered_map<int, std::vector<Grid>>&
           time_discovered_obstacles = {}) {
     std::cout << "Please implement this function for the planner" << '\n';
     std::cout << "Value attempted to be set: " << '\n';
