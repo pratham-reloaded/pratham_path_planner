@@ -26,6 +26,10 @@
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 
+
+#include "grid_map_core/grid_map_core.hpp"
+#include "grid_map_ros/grid_map_ros.hpp"
+
 using namespace::std::chrono_literals;
 using std::placeholders::_1;
 
@@ -48,6 +52,8 @@ constexpr int n = 4;
 std::vector<std::vector<int>> grid(n, std::vector<int>(n, 0));
 std::vector<std::vector<int>> path(0, std::vector<int>(2,0));
 
+
+static grid_map::GridMapRosConverter conv;
 
 class PathPlanner : public rclcpp::Node
 {
@@ -109,10 +115,11 @@ class PathPlanner : public rclcpp::Node
         {
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
           path.resize(path_vector.size());
-          for (int i=0; i<path_vector.size(); i++){
+          for (int i=0; i<path_vector.size(); i++) {
             printf("%d %d\n", path_vector[i].x_, path_vector[i].y_);
             path[i][0]=n-1-path_vector[i].y_;
-            path[i][1]=path_vector[i].x_;}
+            path[i][1]=path_vector[i].x_;
+          }
         }
 
       }
@@ -134,7 +141,7 @@ class PathPlanner : public rclcpp::Node
         }
         path_local.header.stamp.sec=time_sec;
         path_local.header.stamp.nanosec=time_microsec;
-        path_local.header.frame_id="map_local";
+        path_local.header.frame_id="map_link";
         for(int i=0; i<path.size();i++){
           path_local.poses[i].pose.position.x=path[i][0];
           path_local.poses[i].pose.position.y=path[i][1];
@@ -151,6 +158,11 @@ class PathPlanner : public rclcpp::Node
       //Subscriptions
       rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_subscription;
       rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr goal_subscription; 
+
+
+      // gridmap instance
+      std::shared_ptr<grid_map::GridMap> anymap_ptr;
+
 
       //tf_listener
       std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};

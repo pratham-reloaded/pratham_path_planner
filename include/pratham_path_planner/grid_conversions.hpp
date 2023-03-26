@@ -6,11 +6,11 @@
 #include <vector>
 
 #define GRID_SIZE 320
-#define GRID_LEN 6 // meters
+#define GRID_LEN 8 // meters
 
 
 // the grid forms an angle of 180 degrees with the map link
-#define GRID_ORIGIN_X 240
+#define GRID_ORIGIN_X 160
 #define GRID_ORIGIN_Y 160
 
 namespace grid_conversions {
