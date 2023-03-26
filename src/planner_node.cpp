@@ -29,7 +29,6 @@
 using namespace::std::chrono_literals;
 using std::placeholders::_1;
 
-
 double x_translation=0.0, y_translation=0.0; 
 double x_quaternion=0.0,y_quaternion=0.0,z_quaternion=0.0,w_quaternion=0.0;
 
@@ -57,7 +56,7 @@ class PathPlanner : public rclcpp::Node
     {
       //Subscriptions
       goal_subscription=this->create_subscription<geometry_msgs::msg::Pose>("goal_local",10,std::bind(&PathPlanner::local_goal_callback,this,_1));
-      costmap_subscription=this->create_subscription<nav_msgs::msg::OccupancyGrid>("yasmap",10,std::bind(&PathPlanner::yasmap_callback,this,_1));
+      costmap_subscription=this->create_subscription<nav_msgs::msg::OccupancyGrid>("anymap",10,std::bind(&PathPlanner::anymap_callback,this,_1));
 
       //Publishers
       path_publisher=this->create_publisher<nav_msgs::msg::Path>("path_local",10);
@@ -73,7 +72,7 @@ class PathPlanner : public rclcpp::Node
 
       void tf_listener()
       {
-        std::string fromFrameRel = "map_local";
+        std::string fromFrameRel = "map_link";
         std::string toFrameRel = "base_link";
         geometry_msgs::msg::TransformStamped t;
         t = tf_buffer_->lookupTransform(toFrameRel, fromFrameRel,tf2::TimePointZero);
@@ -85,7 +84,7 @@ class PathPlanner : public rclcpp::Node
         w_quaternion=t.transform.rotation.w;
       }
 
-      void yasmap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map) const
+      void anymap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map) const
       {
         for (int i=0; i<(n*n); i++){
           if(temp_0==4){

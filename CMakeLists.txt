@@ -25,9 +25,14 @@ find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
+ffind_package(grid_map REQUIRED)
+find_package(grid_map_core REQUIRED)
+ind_package(tf2_ros REQUIRED)
+
 ament_target_dependencies(planner_node
-  "rclcpp"
+ "grid_map"
+ "grid_map_core"
+ "rclcpp"
   "std_msgs"
   "nav_msgs"
   "geometry_msgs"
