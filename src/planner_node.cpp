@@ -19,8 +19,11 @@
 #include "path_planning/dijkstra.hpp"
 #include "../include/path_planning_lib/src/dijkstra.cpp"
 
-#include "path_planning/rrt_star.hpp"
-#include "../include/path_planning_lib/src/rrt_star.cpp"
+// #include "path_planning/rrt_star.hpp"
+// #include "../include/path_planning_lib/src/rrt_star.cpp"
+
+#include "path_planning/rrt.hpp"
+#include "../include/path_planning_lib/src/rrt.cpp"
 
 #include "path_planning/lpa_star.hpp"
 #include "../include/path_planning_lib/src/lpa_star.cpp"
@@ -209,11 +212,11 @@ class PathPlanner : public rclcpp::Node
         start.id_ = start.x_ * n + start.y_;
         start.pid_ = start.x_ * n + start.y_;
         goal.id_ = goal.x_ * n + goal.y_;
-        // goal.h_cost_ = abs(start.x_ - goal.x_) + abs(start.y_ - goal.y_);
+        start.h_cost_ = abs(start.x_ - goal.x_) + abs(start.y_ - goal.y_);
 
         std::cout << "instanciating the path planner\n";
-        Dijkstra d_star_lite(grid);
-        // d_star_lite.SetParams();
+        JumpPointSearch d_star_lite(grid);
+        // d_star_lite.SetParams(20, 1010);
         {
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
           std::cout << "path planning done? " << path_found << std::endl;

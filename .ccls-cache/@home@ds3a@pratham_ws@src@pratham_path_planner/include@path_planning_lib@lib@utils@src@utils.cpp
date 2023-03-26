@@ -74,11 +74,11 @@ std::vector<Grid> GetMotion() {
     Grid(0, 1, 1, 0, 0, 0),
     Grid(1, 0, 1, 0, 0, 0),
     Grid(0, -1, 1, 0, 0, 0),
-    Grid(-1, 0, 1, 0, 0, 0)
-    // Node(1, 1, sqrt(2), 0, 0, 0),
-    // Node(1, -1, sqrt(2), 0, 0, 0),
-    // Node(-1, 1, sqrt(2), 0, 0, 0),
-    // Node(-1, -1, sqrt(2), 0, 0, 0)
+    Grid(-1, 0, 1, 0, 0, 0),
+    Grid(1, 1, sqrt(2), 0, 0, 0),
+    Grid(1, -1, sqrt(2), 0, 0, 0),
+    Grid(-1, 1, sqrt(2), 0, 0, 0),
+    Grid(-1, -1, sqrt(2), 0, 0, 0)
   };
   // NOTE: Add diagonal movements for A* and D* only after the heuristics in the
   // algorithms have been modified. Refer to README.md. The heuristics currently
