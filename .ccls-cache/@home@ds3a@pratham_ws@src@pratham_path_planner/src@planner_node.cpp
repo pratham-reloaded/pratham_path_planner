@@ -154,7 +154,7 @@ class PathPlanner : public rclcpp::Node
       rclcpp::TimerBase::SharedPtr timer_tf{nullptr};
 
       float goal_x=4;
-      float goal_y=4;
+      float goal_y=0;
       //transforms
       geometry_msgs::msg::TransformStamped odom_to_base;
       geometry_msgs::msg::TransformStamped odom_to_map;
@@ -300,7 +300,6 @@ class PathPlanner : public rclcpp::Node
 
       void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal)
       {
-        std::cout << "received new goal\n";
         this->goal_x = goal->position.x;
         this->goal_y = goal->position.y;
 
