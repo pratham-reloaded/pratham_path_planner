@@ -116,7 +116,7 @@ class PathPlanner : public rclcpp::Node
       //tf_listener
       tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
       tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-      timer_tf = this->create_wall_timer(9000s, std::bind(&PathPlanner::tf_listener, this));
+      // timer_tf = this->create_wall_timer(9000s, std::bind(&PathPlanner::tf_listener, this));
 
       std::cout << "initializing anymap\n";
       this->anymap_ptr = std::shared_ptr<grid_map::GridMap>(new grid_map::GridMap);
@@ -149,8 +149,13 @@ class PathPlanner : public rclcpp::Node
       std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
       rclcpp::TimerBase::SharedPtr timer_tf{nullptr};
 
+      //transforms
+      geometry_msgs::msg::TransformStamped odom_to_base;
+      geometry_msgs::msg::TransformStamped odom_to_map;
+      geometry_msgs::msg::TransformStamped map_to_base;
 
-      void tf_listener()
+
+/*      void tf_listener()
       {
         std::string fromFrameRel = "map_link";
         std::string toFrameRel = "base_link";
@@ -163,7 +168,20 @@ class PathPlanner : public rclcpp::Node
         z_quaternion=t.transform.rotation.z;
         w_quaternion=t.transform.rotation.w;
       }
+*/
+      void get_odom_to_base_tf() {
+        // lookup the latest transform between odom and base_link
+        this->odom_to_base = this->tf_buffer_->lookupTransform("base_link", "odom", tf2::TimePointZero);
+      }
 
+      void get_odom_to_map_tf() {
+          this->odom_to_map = this->tf_buffer_->lookupTransform("base_link", "map_link", tf2::TimePointZero);
+      }
+
+      void get_map_to_base_tf() {
+        this->get_map_to_base = this->tf_buffer_->lookupTransform("map_link", "base_link", tf2::TimePointZero);
+      }
+    
 
       void anymap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map)
       {
@@ -172,41 +190,29 @@ class PathPlanner : public rclcpp::Node
         conv.fromOccupancyGrid(*local_map, "anymap", *(this->anymap_ptr));
         std::cout << "added from occupancyGrid to anymap_ptr\n";
 
-        std::cout << "the matrix size is " <<
-          this->anymap_ptr->get("anymap").rows() << " " <<
-          this->anymap_ptr->get("anymap").cols() << std::endl;
+        std::cout << "the matrix size is " << this->anymap_ptr->get("anymap").rows()
+                  << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
 
-        Eigen::MatrixXf unprocessed_grid_map = this->anymap_ptr->get("anymap").cast<float>();
-          // .cast<Eigen::Matrix2f::Scalar>();
-          // .cast<float>();
+        Eigen::MatrixXf unprocessed_grid_map =
+          this->anymap_ptr->get("anymap").cast<float>();
+        // .cast<Eigen::Matrix2f::Scalar>();
+        // .cast<float>();
         std::cout << "got the unprocessed matrix, now processing\n";
-        Eigen::MatrixXf processed_grid_map = unprocessed_grid_map.unaryExpr(&occupancy_grid_to_vec);
+        Eigen::MatrixXf processed_grid_map =
+          unprocessed_grid_map.unaryExpr(&occupancy_grid_to_vec);
         std::cout << "converted anymap to Eigen::matrix\n";
 
-
-        Eigen::Map<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(
-          const_cast<int*>(
-            this->grid[0].data()),
-            processed_grid_map.rows(),
+        Eigen::Map<
+          Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(
+            const_cast<int *>(this->grid[0].data()), processed_grid_map.rows(),
             processed_grid_map.cols()) = processed_grid_map.cast<int>();
 
-/*
-        for (int i=0; i<(n*n); i++){
-          if(temp_0==4) {
-            temp_0=0;
-            temp_1++;
-          }
-
-          if(local_map->data[i]>75){
-          grid[n-1-temp_1][temp_0]=1;}
-          temp_0++;
-        }
-*/
-
-        std::cout << "received grid with avg value " << getAverageValue(this->grid) << std::endl;
-        Grid start(160, 160, 10, 1230.02, 0, 0);
-        std::cout << "setting the goal to " << n-1-goal_y << " " << goal_x << std::endl;
-        Grid goal(0, 120, 122, 0.1, 1, 0);
+        // std::cout << "received grid with avg value " << getAverageValue(this->grid)
+        // << std::endl;
+        Grid start(155, 160, 10, 1230.02, 0, 0);
+        std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x
+                  << std::endl;
+        Grid goal(0, 10, 122, 0.1, 1, 0);
 
         std::cout << "created nodes for start and goal\n";
         start.id_ = start.x_ * n + start.y_;
@@ -215,23 +221,16 @@ class PathPlanner : public rclcpp::Node
         start.h_cost_ = abs(start.x_ - goal.x_) + abs(start.y_ - goal.y_);
 
         std::cout << "instanciating the path planner\n";
-        JumpPointSearch d_star_lite(grid);
+        DStarLite d_star_lite(grid);
         // d_star_lite.SetParams(20, 1010);
         {
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
           std::cout << "path planning done? " << path_found << std::endl;
           std::cout << "size of the path found " << path_vector.size() << std::endl;
-          // path.resize(path_vector.size());
           this->path = path_vector;
           std::cout << "resized the path now printing\n";
-          for (int i=0; i<path_vector.size(); i++) {
-            // printf("%d %d\n", path_vector[i].x_, path_vector[i].y_);
-            // path[i][0]=n-1-path_vector[i].y_;
-            // path[i][1]=path_vector[i].x_;
-          }
           std::cout << "path printed now it needs to be published\n";
         }
-
       }
 
       void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal) const
@@ -243,17 +242,8 @@ class PathPlanner : public rclcpp::Node
       void path_publisher_callback()
       {
         std::cout << "publishing path : \n";
-        auto path_local=nav_msgs::msg::Path();
-        /*
-        time_count++;
-        time_microsec=time_microsec+50;
-        if(time_count%20==0)
-        {
-          time_sec++;
-        }*/
-        // path_local.header.stamp.sec=time_sec;
-        // path_local.header.stamp.nanosec=time_microsec;
-        path_local.header.frame_id="map_link";
+        auto path_local = nav_msgs::msg::Path();
+        path_local.header.frame_id = "map_link";
 
         for(int i=0; i<path.size();i++){
           geometry_msgs::msg::PoseStamped pose_stamped_msg;
