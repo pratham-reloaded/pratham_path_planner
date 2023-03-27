@@ -4,6 +4,7 @@
 #include <chrono>
 #include <functional>
 #include <string>
+#include <math.h>
 
 #include "grid_map_core/grid_map_core.hpp"
 #include "grid_map_ros/grid_map_ros.hpp"
@@ -83,19 +84,16 @@ float occupancy_grid_to_vec(float x) {
   }
 }
 
-
-double getAverageValue(const std::vector<std::vector<int>>& matrix) {
-    int count = 0;
-    int sum = 0;
-    for (const auto& row : matrix) {
-        for (const auto& val : row) {
-            sum += val;
-            count++;
+Eigen::MatrixXf createMatrixFromVector(std::vector<std::vector<int>> vectorMat, Eigen::MatrixXf& matrixMat) {
+    std::cout << vectorMat.size() << " " << vectorMat[1].size() << std::endl;
+    for(int i = 0; i < vectorMat.size(); i++) {
+        for(int j = 0; j < vectorMat[i].size(); j++) {
+            matrixMat(i,j) = static_cast<float>(vectorMat[i][j]);
         }
     }
-    if (count == 0) return 0;
-    return static_cast<double>(sum) / count;
+    return matrixMat;
 }
+
 
 class PathPlanner : public rclcpp::Node
 {
@@ -103,6 +101,7 @@ class PathPlanner : public rclcpp::Node
     PathPlanner(): rclcpp::Node("path_planner"), grid(n, std::vector<int>(n, 0))
     {
       std::cout << "initializing subscriptions\n";
+
       //Subscriptions
       goal_subscription=this->create_subscription<geometry_msgs::msg::Pose>("goal_local",10,std::bind(&PathPlanner::local_goal_callback,this,_1));
       costmap_subscription=this->create_subscription<nav_msgs::msg::OccupancyGrid>("anymap",10,std::bind(&PathPlanner::anymap_callback,this,_1));
@@ -111,6 +110,12 @@ class PathPlanner : public rclcpp::Node
       //Publishers
       path_publisher=this->create_publisher<nav_msgs::msg::Path>("path_local",10);
       path_publish_timer=this->create_wall_timer(50ms, std::bind(&PathPlanner::path_publisher_callback, this));
+
+
+      gridmap_publisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("grid", 10);
+
+
+
 
       std::cout << "initializing tf stuff\n";
       //tf_listener
@@ -130,6 +135,8 @@ class PathPlanner : public rclcpp::Node
       rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher;
       rclcpp::TimerBase::SharedPtr path_publish_timer;
 
+      // this is a test to see what the node is perceiving
+      rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr gridmap_publisher;
 
       //Subscriptions
       rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_subscription;
@@ -154,21 +161,6 @@ class PathPlanner : public rclcpp::Node
       geometry_msgs::msg::TransformStamped odom_to_map;
       geometry_msgs::msg::TransformStamped map_to_base;
 
-
-/*      void tf_listener()
-      {
-        std::string fromFrameRel = "map_link";
-        std::string toFrameRel = "base_link";
-        geometry_msgs::msg::TransformStamped t;
-        t = tf_buffer_->lookupTransform(toFrameRel, fromFrameRel,tf2::TimePointZero);
-        x_translation=t.transform.translation.x;
-        y_translation=t.transform.translation.y;
-        x_quaternion=t.transform.rotation.x;
-        y_quaternion=t.transform.rotation.y;
-        z_quaternion=t.transform.rotation.z;
-        w_quaternion=t.transform.rotation.w;
-      }
-*/
       void get_odom_to_base_tf() {
         // lookup the latest transform between odom and base_link
         this->odom_to_base = this->tf_buffer_->lookupTransform("base_link", "odom", tf2::TimePointZero);
@@ -179,7 +171,7 @@ class PathPlanner : public rclcpp::Node
       }
 
       void get_map_to_base_tf() {
-        this->get_map_to_base = this->tf_buffer_->lookupTransform("map_link", "base_link", tf2::TimePointZero);
+        this->map_to_base = this->tf_buffer_->lookupTransform("map_link", "base_link", tf2::TimePointZero);
       }
     
 
@@ -202,27 +194,58 @@ class PathPlanner : public rclcpp::Node
           unprocessed_grid_map.unaryExpr(&occupancy_grid_to_vec);
         std::cout << "converted anymap to Eigen::matrix\n";
 
-        Eigen::Map<
-          Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(
-            const_cast<int *>(this->grid[0].data()), processed_grid_map.rows(),
-            processed_grid_map.cols()) = processed_grid_map.cast<int>();
+        int rows = processed_grid_map.rows();
+        int cols = processed_grid_map.cols();
+        std::cout << rows << " " << cols << std::endl;
+
+        Eigen::MatrixXi int_grid_map = processed_grid_map.cast<int>().transpose();
+        this->grid.clear();
+        for(int i=0; i<cols; i++) {
+          const int* begin = &int_grid_map.col(i).data()[0];
+          this->grid.push_back(std::vector<int>(begin, begin+rows));
+        }
+
+/*
+        for(int i = 0; i < rows; i++) {
+          for(int j = 0; j < cols; j++) {
+            this->grid[i][j] = processed_grid_map(i, j);
+          }
+        }
+        */
+
+        std::cout << " the vector<vector<int>> is of shape " << this->grid.size() << " " << this->grid[0].size() << std::endl;
+
+
+        this->anymap_ptr->add("stuff_shown", 0.0);
+
+        nav_msgs::msg::OccupancyGrid grid_msg;
+        std::cout << "the matrix size is: \n";
+        // std::cout << createMatrixFromVector(this->grid).size() << std::endl;
+
+        createMatrixFromVector(this->grid, this->anymap_ptr->get("stuff_shown"));
+
+        conv.toOccupancyGrid(*anymap_ptr.get(), "stuff_shown", 0, 1, grid_msg);
+        grid_msg.header.frame_id = "map_link";
+
+        gridmap_publisher->publish(grid_msg);
 
         // std::cout << "received grid with avg value " << getAverageValue(this->grid)
         // << std::endl;
-        Grid start(155, 160, 10, 1230.02, 0, 0);
+        Grid start(160, 160, 0, 0, 0, 0);
         std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x
                   << std::endl;
-        Grid goal(0, 10, 122, 0.1, 1, 0);
+        // Grid goal(0, 319, 0, 0, 0, 0);
+        Grid goal(0, 0, 0, 0, 0, 0);
 
         std::cout << "created nodes for start and goal\n";
         start.id_ = start.x_ * n + start.y_;
         start.pid_ = start.x_ * n + start.y_;
         goal.id_ = goal.x_ * n + goal.y_;
-        start.h_cost_ = abs(start.x_ - goal.x_) + abs(start.y_ - goal.y_);
+        start.h_cost_ = sqrt(powf(start.x_ - goal.x_, 2) + powf(start.y_ - goal.y_, 2));
+
 
         std::cout << "instanciating the path planner\n";
-        DStarLite d_star_lite(grid);
-        // d_star_lite.SetParams(20, 1010);
+        AStar d_star_lite(this->grid);
         {
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
           std::cout << "path planning done? " << path_found << std::endl;
@@ -253,7 +276,7 @@ class PathPlanner : public rclcpp::Node
           pose_stamped_msg.pose.position.x = position.x();
           pose_stamped_msg.pose.position.y = position.y();
           path_local.poses.emplace_back(pose_stamped_msg);
-          std::cout << "the path is : " << path[i].x_ << " " << path[i].y_ << std::endl;
+          // std::cout << "the path is : " << path[i].x_ << " " << path[i].y_ << std::endl;
         }
         // std::cout << path_local << std::endl;
         path_publisher->publish(path_local);
