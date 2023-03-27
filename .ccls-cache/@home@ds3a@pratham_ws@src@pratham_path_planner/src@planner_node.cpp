@@ -20,9 +20,6 @@
 #include "path_planning/dijkstra.hpp"
 #include "../include/path_planning_lib/src/dijkstra.cpp"
 
-// #include "path_planning/rrt_star.hpp"
-// #include "../include/path_planning_lib/src/rrt_star.cpp"
-
 #include "path_planning/rrt.hpp"
 #include "../include/path_planning_lib/src/rrt.cpp"
 
@@ -44,6 +41,8 @@
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
 #include "tf2/exceptions.h"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2/LinearMath/Matrix3x3.h"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
@@ -61,8 +60,6 @@ int time_sec=0;
 unsigned int time_microsec=0;
 int time_count=0;
 
-int goal_x=0;
-int goal_y=0;
 
 int temp_0=0;
 int temp_1=0;
@@ -75,7 +72,7 @@ static grid_map::GridMapRosConverter conv;
 
 
 
-static float occupied_threshold = 0;
+static float occupied_threshold = 0.0;
 float occupancy_grid_to_vec(float x) {
   if (x > occupied_threshold) {
     return 1;
@@ -85,7 +82,7 @@ float occupancy_grid_to_vec(float x) {
 }
 
 Eigen::MatrixXf createMatrixFromVector(std::vector<std::vector<int>> vectorMat, Eigen::MatrixXf& matrixMat) {
-    std::cout << vectorMat.size() << " " << vectorMat[1].size() << std::endl;
+    // std::cout << vectorMat.size() << " " << vectorMat[1].size() << std::endl;
     for(int i = 0; i < vectorMat.size(); i++) {
         for(int j = 0; j < vectorMat[i].size(); j++) {
             matrixMat(i,j) = static_cast<float>(vectorMat[i][j]);
@@ -156,6 +153,8 @@ class PathPlanner : public rclcpp::Node
       std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
       rclcpp::TimerBase::SharedPtr timer_tf{nullptr};
 
+      float goal_x=4;
+      float goal_y=4;
       //transforms
       geometry_msgs::msg::TransformStamped odom_to_base;
       geometry_msgs::msg::TransformStamped odom_to_map;
@@ -177,26 +176,40 @@ class PathPlanner : public rclcpp::Node
 
       void anymap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map)
       {
-        std::cout << "received a map\n";
+        try {
+          this->get_map_to_base_tf();
+          this->get_odom_to_map_tf();
+          this->get_odom_to_base_tf();
+        } catch (const tf2::TransformException &ex) {
+          std::cout << "unable to look up tf. Make sure the localization thingi is running\n";
+        }
+
+        // std::cout << "received a map\n";
         this->anymap_ptr->get("anymap").setConstant(0.0);
         conv.fromOccupancyGrid(*local_map, "anymap", *(this->anymap_ptr));
-        std::cout << "added from occupancyGrid to anymap_ptr\n";
+        // std::cout << "added from occupancyGrid to anymap_ptr\n";
 
-        std::cout << "the matrix size is " << this->anymap_ptr->get("anymap").rows()
-                  << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
+        // std::cout << "the matrix size is " << this->anymap_ptr->get("anymap").rows()
+                  // << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
 
         Eigen::MatrixXf unprocessed_grid_map =
           this->anymap_ptr->get("anymap").cast<float>();
+
+/*        grid_map::Position pose_(0, 2);
+        grid_map::Index ind_;
+        this->anymap_ptr->getIndex(pose_, ind_);
+        std::cout << "index of (0, 2) is \n" << ind_ << std::endl;
+*/
         // .cast<Eigen::Matrix2f::Scalar>();
         // .cast<float>();
-        std::cout << "got the unprocessed matrix, now processing\n";
+        // std::cout << "got the unprocessed matrix, now processing\n";
         Eigen::MatrixXf processed_grid_map =
           unprocessed_grid_map.unaryExpr(&occupancy_grid_to_vec);
-        std::cout << "converted anymap to Eigen::matrix\n";
+        // std::cout << "converted anymap to Eigen::matrix\n";
 
         int rows = processed_grid_map.rows();
         int cols = processed_grid_map.cols();
-        std::cout << rows << " " << cols << std::endl;
+        // std::cout << rows << " " << cols << std::endl;
 
         Eigen::MatrixXi int_grid_map = processed_grid_map.cast<int>().transpose();
         this->grid.clear();
@@ -205,21 +218,13 @@ class PathPlanner : public rclcpp::Node
           this->grid.push_back(std::vector<int>(begin, begin+rows));
         }
 
-/*
-        for(int i = 0; i < rows; i++) {
-          for(int j = 0; j < cols; j++) {
-            this->grid[i][j] = processed_grid_map(i, j);
-          }
-        }
-        */
+        // std::cout << " the vector<vector<int>> is of shape " << this->grid.size() << " " << this->grid[0].size() << std::endl;
 
-        std::cout << " the vector<vector<int>> is of shape " << this->grid.size() << " " << this->grid[0].size() << std::endl;
-
-
+/* // THIS STUFF IS JUST FOR DEBUGGING
         this->anymap_ptr->add("stuff_shown", 0.0);
 
         nav_msgs::msg::OccupancyGrid grid_msg;
-        std::cout << "the matrix size is: \n";
+        // std::cout << "the matrix size is: \n";
         // std::cout << createMatrixFromVector(this->grid).size() << std::endl;
 
         createMatrixFromVector(this->grid, this->anymap_ptr->get("stuff_shown"));
@@ -228,43 +233,107 @@ class PathPlanner : public rclcpp::Node
         grid_msg.header.frame_id = "map_link";
 
         gridmap_publisher->publish(grid_msg);
-
+*/
         // std::cout << "received grid with avg value " << getAverageValue(this->grid)
-        // << std::endl;
-        Grid start(160, 160, 0, 0, 0, 0);
-        std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x
-                  << std::endl;
-        // Grid goal(0, 319, 0, 0, 0, 0);
-        Grid goal(0, 0, 0, 0, 0, 0);
 
-        std::cout << "created nodes for start and goal\n";
+
+        // This should be the transform between map_link and base_link converted to indices
+
+
+        grid_map::Position pose(this->map_to_base.transform.translation.x,
+                                this->map_to_base.transform.translation.y);
+        grid_map::Index ind;
+        this->anymap_ptr->getIndex(pose, ind);
+
+        // TODO check if it is ind(0) ind(1) or the opposite
+        // DONE, this is correct
+        Grid start(ind(0), ind(1), 0, 0, 0, 0);
+        // std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x << std::endl;
+        // Grid goal(0, 319, 0, 0, 0, 0);
+
+        // we have OG stored in (this->goal_x, this->goal_y)
+        // we have OM stored in this->odom_to_map
+        // MG = OG - OM
+        // we need to rotate it by -yaw to supply the goal to the path planner
+        tf2::Quaternion q;
+        double roll, pitch, yaw;
+        q.setX(this->odom_to_map.transform.rotation.x);
+        q.setY(this->odom_to_map.transform.rotation.y);
+        q.setZ(this->odom_to_map.transform.rotation.z);
+        q.setW(this->odom_to_map.transform.rotation.w);
+        tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+        // this returns yaw in radians
+
+        // OG - OM = MG
+        float mg_x = this->goal_x - this->odom_to_map.transform.translation.x;
+        float mg_y = this->goal_y - this->odom_to_map.transform.translation.y;
+
+        // (mogx, mogy) is MG but with M as a non rotated frame, we can convert this to indices to provide as a goal
+        float mogx = (mg_x * std::cos(-yaw)) + (mg_y * (-std::sin(-yaw)));
+        float mogy = (mg_x * std::sin(-yaw)) + (mg_y * std::cos(-yaw));
+
+        grid_map::Position mog_pose(mogx, mogy);
+        grid_map::Index goal_ind;
+        this->anymap_ptr->getIndex(mog_pose, goal_ind);
+
+        Grid goal(goal_ind(0), goal_ind(1), 0, 0, 0, 0);
+
+        // std::cout << "created nodes for start and goal\n";
         start.id_ = start.x_ * n + start.y_;
         start.pid_ = start.x_ * n + start.y_;
         goal.id_ = goal.x_ * n + goal.y_;
         start.h_cost_ = sqrt(powf(start.x_ - goal.x_, 2) + powf(start.y_ - goal.y_, 2));
 
 
-        std::cout << "instanciating the path planner\n";
+        // std::cout << "instanciating the path planner\n";
         AStar d_star_lite(this->grid);
         {
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
-          std::cout << "path planning done? " << path_found << std::endl;
-          std::cout << "size of the path found " << path_vector.size() << std::endl;
+          // std::cout << "path planning done? " << path_found << std::endl;
+          // std::cout << "size of the path found " << path_vector.size() << std::endl;
           this->path = path_vector;
-          std::cout << "resized the path now printing\n";
-          std::cout << "path printed now it needs to be published\n";
+          // std::cout << "received path of length " << path_vector.size() <<std::endl;
+          // std::cout << "resized the path now printing\n";
+          // std::cout << "path printed now it needs to be published\n";
         }
       }
 
-      void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal) const
+      void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal)
       {
-        goal_x=(int) goal->position.x;
-        // goal_y=(int) goal->position.y;
+        std::cout << "received new goal\n";
+        this->goal_x = goal->position.x;
+        this->goal_y = goal->position.y;
+
+        // NOTE
+        // Goals are given with respect to base link
+        // while storing them, we need to store it in terms of the odom frame
+        // to do that, we first rotate the current goal_x and goal_y in the direction that base link is rotated w.r.t odom
+        // then add odom to the rotated matrix and store
+
+        tf2::Quaternion q;
+        double roll, pitch, yaw;
+        q.setX(this->odom_to_base.transform.rotation.x);
+        q.setY(this->odom_to_base.transform.rotation.y);
+        q.setZ(this->odom_to_base.transform.rotation.z);
+        q.setW(this->odom_to_base.transform.rotation.w);
+        tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+        // this returns yaw in radians
+
+        //now to get the vector BG (B = base_link, G = goal)
+        //std trig functions take in radians as inputs
+        this->goal_x = (goal->position.x * std::cos(yaw)) + (goal->position.y * (-std::sin(yaw)));
+        this->goal_y = (goal->position.x * std::sin(yaw)) + (goal->position.y * std::cos(yaw));
+
+        // We have OB (O = odom, B = base_link), from this->odom_to_base
+        // we just have to add OB to BG to get OG, which we can store
+        this->goal_x += this->odom_to_base.transform.translation.x;
+        this->goal_y += this->odom_to_base.transform.translation.y;
+        // (goal_x, goal_y) forms vector OG
       }
 
       void path_publisher_callback()
       {
-        std::cout << "publishing path : \n";
+        // std::cout << "publishing path : \n";
         auto path_local = nav_msgs::msg::Path();
         path_local.header.frame_id = "map_link";
 
@@ -281,9 +350,6 @@ class PathPlanner : public rclcpp::Node
         // std::cout << path_local << std::endl;
         path_publisher->publish(path_local);
       }
-
-     
-
 };
 
 int main(int argc, char * argv[])
