@@ -106,7 +106,7 @@ class PathPlanner : public rclcpp::Node
       std::cout << "initializing publishers\n";
       //Publishers
       path_publisher=this->create_publisher<nav_msgs::msg::Path>("path_local",10);
-      path_publish_timer=this->create_wall_timer(50ms, std::bind(&PathPlanner::path_publisher_callback, this));
+      // path_publish_timer=this->create_wall_timer(50ms, std::bind(&PathPlanner::path_publisher_callback, this));
 
 
       gridmap_publisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("grid", 10);
@@ -330,8 +330,8 @@ class PathPlanner : public rclcpp::Node
           // std::cout << "received path of length " << path_vector.size() <<std::endl;
           // std::cout << "resized the path now printing\n";
           // std::cout << "path printed now it needs to be published\n";
+          this->path_publisher_callback();
         }
-
       }
 
       void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal)
