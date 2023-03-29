@@ -123,6 +123,7 @@ class PathPlanner : public rclcpp::Node
       std::cout << "initializing anymap\n";
       this->anymap_ptr = std::shared_ptr<grid_map::GridMap>(new grid_map::GridMap);
       this->anymap_ptr->setGeometry(grid_map::Length(8, 8), 0.025);
+      this->anymap_ptr->setPosition(grid_map::Position(4, 0));
       this->anymap_ptr->add("anymap", 0.0);
       std::cout << "initialization done\n";
     }
@@ -184,63 +185,8 @@ class PathPlanner : public rclcpp::Node
           std::cout << "unable to look up tf. Make sure the localization thingi is running\n";
         }
 
-        // std::cout << "received a map\n";
-        this->anymap_ptr->get("anymap").setConstant(0.0);
-        conv.fromOccupancyGrid(*local_map, "anymap", *(this->anymap_ptr));
-        // std::cout << "added from occupancyGrid to anymap_ptr\n";
 
-        // std::cout << "the matrix size is " << this->anymap_ptr->get("anymap").rows()
-                  // << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
-
-        Eigen::MatrixXf unprocessed_grid_map =
-          this->anymap_ptr->get("anymap").cast<float>();
-
-/*        grid_map::Position pose_(0, 2);
-        grid_map::Index ind_;
-        this->anymap_ptr->getIndex(pose_, ind_);
-        std::cout << "index of (0, 2) is \n" << ind_ << std::endl;
-*/
-        // .cast<Eigen::Matrix2f::Scalar>();
-        // .cast<float>();
-        // std::cout << "got the unprocessed matrix, now processing\n";
-        Eigen::MatrixXf processed_grid_map =
-          unprocessed_grid_map.unaryExpr(&occupancy_grid_to_vec);
-        // std::cout << "converted anymap to Eigen::matrix\n";
-
-        int rows = processed_grid_map.rows();
-        int cols = processed_grid_map.cols();
-        // std::cout << rows << " " << cols << std::endl;
-
-        Eigen::MatrixXi int_grid_map = processed_grid_map.cast<int>().transpose();
-        this->grid.clear();
-        for(int i=0; i<cols; i++) {
-          const int* begin = &int_grid_map.col(i).data()[0];
-          this->grid.push_back(std::vector<int>(begin, begin+rows));
-        }
-
-        // std::cout << " the vector<vector<int>> is of shape " << this->grid.size() << " " << this->grid[0].size() << std::endl;
-
-/* // THIS STUFF IS JUST FOR DEBUGGING
-        this->anymap_ptr->add("stuff_shown", 0.0);
-
-        nav_msgs::msg::OccupancyGrid grid_msg;
-        // std::cout << "the matrix size is: \n";
-        // std::cout << createMatrixFromVector(this->grid).size() << std::endl;
-
-        createMatrixFromVector(this->grid, this->anymap_ptr->get("stuff_shown"));
-
-        conv.toOccupancyGrid(*anymap_ptr.get(), "stuff_shown", 0, 1, grid_msg);
-        grid_msg.header.frame_id = "map_link";
-
-        gridmap_publisher->publish(grid_msg);
-*/
-        // std::cout << "received grid with avg value " << getAverageValue(this->grid)
-
-
-        // This should be the transform between map_link and base_link converted to indices
-
-
-        grid_map::Position pose(this->map_to_base.transform.translation.x,
+       grid_map::Position pose(this->map_to_base.transform.translation.x,
                                 this->map_to_base.transform.translation.y);
         grid_map::Index ind;
         this->anymap_ptr->getIndex(pose, ind);
@@ -248,6 +194,17 @@ class PathPlanner : public rclcpp::Node
         // TODO check if it is ind(0) ind(1) or the opposite
         // DONE, this is correct
         std::cout << "setting start to " << ind(0) << " " << ind(1) << std::endl;
+        if (ind(0) < 0) {
+          ind(0) = 0;
+        } else if (ind(0) >= 320) {
+          ind(0) = 319;
+        }
+
+        if (ind(1) < 0) {
+          ind(1) = 0;
+        } else if (ind(1) >= 320) {
+          ind(1) = 319;
+        }
         Grid start(ind(0), ind(1), 0, 0, 0, 0);
         // std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x << std::endl;
         // Grid goal(0, 319, 0, 0, 0, 0);
@@ -277,6 +234,17 @@ class PathPlanner : public rclcpp::Node
         grid_map::Index goal_ind;
         this->anymap_ptr->getIndex(mog_pose, goal_ind);
 
+        if (goal_ind(0) < 0) {
+          goal_ind(0) = 0;
+        } else if (goal_ind(0) >= 320) {
+          goal_ind(0) = 319;
+        }
+        if (goal_ind(1) < 0) {
+          goal_ind(1) = 0;
+        } else if (goal_ind(1) >= 320) {
+          goal_ind(1) = 319;
+        }
+
         Grid goal(goal_ind(0), goal_ind(1), 0, 0, 0, 0);
 
         std::cout << "setting goal to " << goal_ind(0) << " " << goal_ind(1) <<  "\n";
@@ -286,17 +254,84 @@ class PathPlanner : public rclcpp::Node
         start.h_cost_ = sqrt(powf(start.x_ - goal.x_, 2) + powf(start.y_ - goal.y_, 2));
 
 
-        // std::cout << "instanciating the path planner\n";
+
+
+        this->anymap_ptr->setPosition(grid_map::Position(4, 0));
+        // std::cout << "received a map\n";
+        this->anymap_ptr->get("anymap").setConstant(0.0);
+        conv.fromOccupancyGrid(*local_map, "anymap", *(this->anymap_ptr));
+        // std::cout << "added from occupancyGrid to anymap_ptr\n";
+
+        // std::cout << "the matrix size is " << this->anymap_ptr->get("anymap").rows()
+                  // << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
+
+        Eigen::MatrixXf unprocessed_grid_map =
+          this->anymap_ptr->get("anymap").cast<float>();
+
+/*        grid_map::Position pose_(0, 2);
+        grid_map::Index ind_;
+        this->anymap_ptr->getIndex(pose_, ind_);
+        std::cout << "index of (0, 2) is \n" << ind_ << std::endl;
+*/
+        // .cast<Eigen::Matrix2f::Scalar>();
+        // .cast<float>();
+        // std::cout << "got the unprocessed matrix, now processing\n";
+        Eigen::MatrixXf processed_grid_map =
+          unprocessed_grid_map.unaryExpr(&occupancy_grid_to_vec);
+        // std::cout << "converted anymap to Eigen::matrix\n";
+
+        // TODO check if it is ind(0) ind(1) or the opposite
+        // DONE, this is correct
+
+        int rows = processed_grid_map.rows();
+        int cols = processed_grid_map.cols();
+        // std::cout << rows << " " << cols << std::endl;
+
+        Eigen::MatrixXi int_grid_map = processed_grid_map.cast<int>().transpose();
+        this->grid.clear();
+        for(int i=0; i<cols; i++) {
+          const int* begin = &int_grid_map.col(i).data()[0];
+          this->grid.push_back(std::vector<int>(begin, begin+rows));
+        }
+
+        // std::cout << " the vector<vector<int>> is of shape " << this->grid.size() << " " << this->grid[0].size() << std::endl;
+
+ // THIS STUFF IS JUST FOR DEBUGGING
+        this->anymap_ptr->add("stuff_shown", 0.0);
+
+        nav_msgs::msg::OccupancyGrid grid_msg;
+        // std::cout << "the matrix size is: \n";
+        // std::cout << createMatrixFromVector(this->grid).size() << std::endl;
+
+        createMatrixFromVector(this->grid, this->anymap_ptr->get("stuff_shown"));
+
+        conv.toOccupancyGrid(*anymap_ptr.get(), "stuff_shown", 0, 1, grid_msg);
+        grid_msg.header.frame_id = "map_link";
+
+        gridmap_publisher->publish(grid_msg);
+
+        // std::cout << "received grid with avg value " << getAverageValue(this->grid)
+
+        // END OF DEBUGGING STUFF
+
+        // This should be the transform between map_link and base_link converted to indices
+
+
+
+        std::cout << "instanciating the path planner\n";
+
         AStar d_star_lite(this->grid);
         {
+          std::cout << "trying path planning\n";
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
-          // std::cout << "path planning done? " << path_found << std::endl;
+          std::cout << "path planning done? " << path_found << std::endl;
           // std::cout << "size of the path found " << path_vector.size() << std::endl;
           this->path = path_vector;
           // std::cout << "received path of length " << path_vector.size() <<std::endl;
           // std::cout << "resized the path now printing\n";
           // std::cout << "path printed now it needs to be published\n";
         }
+
       }
 
       void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal)
