@@ -247,6 +247,7 @@ class PathPlanner : public rclcpp::Node
 
         // TODO check if it is ind(0) ind(1) or the opposite
         // DONE, this is correct
+        std::cout << "setting start to " << ind(0) << " " << ind(1) << std::endl;
         Grid start(ind(0), ind(1), 0, 0, 0, 0);
         // std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x << std::endl;
         // Grid goal(0, 319, 0, 0, 0, 0);
@@ -278,7 +279,7 @@ class PathPlanner : public rclcpp::Node
 
         Grid goal(goal_ind(0), goal_ind(1), 0, 0, 0, 0);
 
-        // std::cout << "created nodes for start and goal\n";
+        std::cout << "setting goal to " << goal_ind(0) << " " << goal_ind(1) <<  "\n";
         start.id_ = start.x_ * n + start.y_;
         start.pid_ = start.x_ * n + start.y_;
         goal.id_ = goal.x_ * n + goal.y_;
@@ -336,7 +337,7 @@ class PathPlanner : public rclcpp::Node
         auto path_local = nav_msgs::msg::Path();
         path_local.header.frame_id = "map_link";
 
-        for(int i=0; i<path.size();i++){
+        for(int i=path.size()-1; i>=0; i--){
           geometry_msgs::msg::PoseStamped pose_stamped_msg;
           grid_map::Position position;
           grid_map::Index index(path[i].x_, path[i].y_);
@@ -344,7 +345,8 @@ class PathPlanner : public rclcpp::Node
           pose_stamped_msg.pose.position.x = position.x();
           pose_stamped_msg.pose.position.y = position.y();
           path_local.poses.emplace_back(pose_stamped_msg);
-          // std::cout << "the path is : " << path[i].x_ << " " << path[i].y_ << std::endl;
+          std::cout << "the path in the map is : " << path[i].x_ << " " << path[i].y_ << std::endl;
+          std::cout << "the path is : " << position.x() << " " << position.y() << std::endl;
         }
         // std::cout << path_local << std::endl;
         path_publisher->publish(path_local);
