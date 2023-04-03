@@ -161,11 +161,11 @@ class PathPlanner : public rclcpp::Node
 
       void get_odom_to_base_tf() {
         // lookup the latest transform between odom and base_link
-        this->odom_to_base = this->tf_buffer_->lookupTransform("base_link", "odom", tf2::TimePointZero);
+        this->odom_to_base = this->tf_buffer_->lookupTransform("odom", "base_link", tf2::TimePointZero);
       }
 
       void get_odom_to_map_tf() {
-          this->odom_to_map = this->tf_buffer_->lookupTransform("base_link", "map_link", tf2::TimePointZero);
+          this->odom_to_map = this->tf_buffer_->lookupTransform("odom", "map_link", tf2::TimePointZero);
       }
 
       void get_map_to_base_tf() {
