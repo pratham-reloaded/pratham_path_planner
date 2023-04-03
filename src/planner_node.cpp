@@ -112,8 +112,6 @@ class PathPlanner : public rclcpp::Node
       gridmap_publisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("grid", 10);
 
 
-
-
       std::cout << "initializing tf stuff\n";
       //tf_listener
       tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
