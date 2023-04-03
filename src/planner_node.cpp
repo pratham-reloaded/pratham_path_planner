@@ -100,7 +100,7 @@ class PathPlanner : public rclcpp::Node
       std::cout << "initializing subscriptions\n";
 
       //Subscriptions
-      goal_subscription=this->create_subscription<geometry_msgs::msg::Pose>("goal_local",10,std::bind(&PathPlanner::local_goal_callback,this,_1));
+      goal_subscription=this->create_subscription<geometry_msgs::msg::PoseStamped>("goal_pose",10,std::bind(&PathPlanner::local_goal_callback,this,_1));
       costmap_subscription=this->create_subscription<nav_msgs::msg::OccupancyGrid>("anymap",10,std::bind(&PathPlanner::anymap_callback,this,_1));
 
       std::cout << "initializing publishers\n";
@@ -138,7 +138,7 @@ class PathPlanner : public rclcpp::Node
 
       //Subscriptions
       rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_subscription;
-      rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr goal_subscription;
+      rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_subscription;
 
       // the path that will be published
       std::vector<Grid> path;
@@ -334,10 +334,10 @@ class PathPlanner : public rclcpp::Node
         }
       }
 
-      void local_goal_callback(const geometry_msgs::msg::Pose::SharedPtr goal)
+      void local_goal_callback(const geometry_msgs::msg::PoseStamped::SharedPtr goal)
       {
-        this->goal_x = goal->position.x;
-        this->goal_y = goal->position.y;
+        this->goal_x = goal->pose.position.x;
+        this->goal_y = goal->pose.position.y;
 
         // NOTE
         // Goals are given with respect to base link
@@ -356,8 +356,8 @@ class PathPlanner : public rclcpp::Node
 
         //now to get the vector BG (B = base_link, G = goal)
         //std trig functions take in radians as inputs
-        this->goal_x = (goal->position.x * std::cos(yaw)) + (goal->position.y * (-std::sin(yaw)));
-        this->goal_y = (goal->position.x * std::sin(yaw)) + (goal->position.y * std::cos(yaw));
+        this->goal_x = (goal->pose.position.x * std::cos(yaw)) + (goal->pose.position.y * (-std::sin(yaw)));
+        this->goal_y = (goal->pose.position.x * std::sin(yaw)) + (goal->pose.position.y * std::cos(yaw));
 
         // We have OB (O = odom, B = base_link), from this->odom_to_base
         // we just have to add OB to BG to get OG, which we can store
