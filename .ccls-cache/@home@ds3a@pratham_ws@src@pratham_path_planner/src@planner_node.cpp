@@ -344,7 +344,6 @@ class PathPlanner : public rclcpp::Node
           this->counter_path_pub = 0;
           this->calculate_start_and_goal();
           this->plan_path();
-          this->path = path_vector;
           // std::cout << "received path of length " << path_vector.size()
 
           // <<std::endl; std::cout << "resized the path now printing\n";
