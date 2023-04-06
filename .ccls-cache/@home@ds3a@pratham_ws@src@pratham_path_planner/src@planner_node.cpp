@@ -188,7 +188,6 @@ class PathPlanner : public rclcpp::Node
       }
 
       void calculate_start_and_goal() {
-
         try {
           this->get_map_to_base_tf();
           this->get_odom_to_map_tf();
@@ -353,8 +352,7 @@ class PathPlanner : public rclcpp::Node
       }
 
       void plan_path() {
-
-        this->get_odom_to_map_tf();
+        // this->get_odom_to_map_tf();
         this->odom_to_path = this->odom_to_map;
         this->odom_to_path.header.frame_id = "odom";
         this->odom_to_path.child_frame_id = "path_frame";
