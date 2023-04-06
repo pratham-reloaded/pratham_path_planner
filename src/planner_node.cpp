@@ -359,7 +359,7 @@ class PathPlanner : public rclcpp::Node
         this->odom_to_path.header.frame_id = "odom";
         this->odom_to_path.child_frame_id = "path_frame";
 
-        DStarLite d_star_lite(this->grid);
+        AStar d_star_lite(this->grid);
         {
           std::cout << "trying path planning\n";
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
