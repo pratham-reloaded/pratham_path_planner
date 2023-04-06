@@ -344,6 +344,9 @@ class PathPlanner : public rclcpp::Node
           std::cout << "path planning done? " << path_found << std::endl;
           // std::cout << "size of the path found " << path_vector.size() <<
           // std::endl;
+
+          // TODO instead of this, compare the new path with the old path and see if it is different
+          // if it is different, then publish
           this->counter_path_pub++;
           if (this->counter_path_pub == 18) {
             this->counter_path_pub = 0;
