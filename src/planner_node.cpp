@@ -340,7 +340,7 @@ class PathPlanner : public rclcpp::Node
           // TODO instead of this, compare the new path with the old path and see if it is different
           // if it is different, then publish
         this->counter_path_pub++;
-        if (this->counter_path_pub == 10) {
+        if (this->counter_path_pub == 3) {
           this->counter_path_pub = 0;
           this->calculate_start_and_goal();
           this->plan_path();
