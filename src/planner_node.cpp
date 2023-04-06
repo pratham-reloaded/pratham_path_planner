@@ -144,6 +144,9 @@ class PathPlanner : public rclcpp::Node
       // the path that will be published
       std::vector<Grid> path;
 
+      // the start and goal position for the thingi
+      Grid start;//(0, 0, 0, 0, 0, 0);
+      Grid goal;//(0, 0, 0, 0, 0, 0);
 
       unsigned int counter_path_pub = 0;
 
@@ -184,8 +187,8 @@ class PathPlanner : public rclcpp::Node
         this->tf_broadcaster_->sendTransform(this->odom_to_path);
       }
 
-      void anymap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map)
-      {
+      void calculate_start_and_goal() {
+
         try {
           this->get_map_to_base_tf();
           this->get_odom_to_map_tf();
@@ -214,7 +217,7 @@ class PathPlanner : public rclcpp::Node
         } else if (ind(1) >= 320) {
           ind(1) = 319;
         }
-        Grid start(ind(0), ind(1), 0, 0, 0, 0);
+        this->start = Grid(ind(0), ind(1), 0, 0, 0, 0);
         // std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x <<
         // std::endl; Grid goal(0, 319, 0, 0, 0, 0);
 
@@ -255,7 +258,7 @@ class PathPlanner : public rclcpp::Node
           goal_ind(1) = 319;
         }
 
-        Grid goal(goal_ind(0), goal_ind(1), 0, 0, 0, 0);
+        this->goal = Grid(goal_ind(0), goal_ind(1), 0, 0, 0, 0);
 
         std::cout << "setting goal to " << goal_ind(0) << " " << goal_ind(1) << "\n";
         start.id_ = start.x_ * n + start.y_;
@@ -263,7 +266,11 @@ class PathPlanner : public rclcpp::Node
         goal.id_ = goal.x_ * n + goal.y_;
         start.h_cost_ =
           sqrt(powf(start.x_ - goal.x_, 2) + powf(start.y_ - goal.y_, 2));
+      }
 
+      void anymap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map) {
+
+        this->calculate_start_and_goal();
         this->anymap_ptr->setPosition(grid_map::Position(4, 0));
         // std::cout << "received a map\n";
         this->anymap_ptr->get("anymap").setConstant(0.0);
@@ -307,6 +314,7 @@ class PathPlanner : public rclcpp::Node
         // << " " << this->grid[0].size() << std::endl;
 
         // THIS STUFF IS JUST FOR DEBUGGING
+        /*
         this->anymap_ptr->add("stuff_shown", 0.0);
 
         nav_msgs::msg::OccupancyGrid grid_msg;
@@ -319,7 +327,7 @@ class PathPlanner : public rclcpp::Node
         grid_msg.header.frame_id = "map_link";
 
         gridmap_publisher->publish(grid_msg);
-
+*/
         // std::cout << "received grid with avg value " << getAverageValue(this->grid)
 
         // END OF DEBUGGING STUFF
@@ -329,10 +337,10 @@ class PathPlanner : public rclcpp::Node
 
         std::cout << "instanciating the path planner\n";
 
-        AStar d_star_lite(this->grid);
+        DStarLite d_star_lite(this->grid);
         {
           std::cout << "trying path planning\n";
-          const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
+          const auto [path_found, path_vector] = d_star_lite.Plan(this->start, this->goal);
           std::cout << "path planning done? " << path_found << std::endl;
           // std::cout << "size of the path found " << path_vector.size() <<
           // std::endl;
@@ -340,25 +348,41 @@ class PathPlanner : public rclcpp::Node
           if (this->counter_path_pub == 18) {
             this->counter_path_pub = 0;
             this->path = path_vector;
-            std::cout << "received path of length " << path_vector.size()
+            // std::cout << "received path of length " << path_vector.size()
 
-            <<std::endl; std::cout << "resized the path now printing\n";
+            // <<std::endl; std::cout << "resized the path now printing\n";
             // std::cout << "path printed now it needs to be published\n";
             this->path_publisher_callback();
           }
         }
-}
+      }
 
-      void local_goal_callback(const geometry_msgs::msg::PoseStamped::SharedPtr goal)
-      {
+      void plan_path() {
+        DStarLite d_star_lite(this->grid);
+        {
+          std::cout << "trying path planning\n";
+          const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
+          std::cout << "path planning done? " << path_found << std::endl;
+          // std::cout << "size of the path found " << path_vector.size() <<
+          // std::endl;
+          this->path = path_vector;
+          // std::cout << "received path of length " << path_vector.size()
+
+          // <<std::endl; std::cout << "resized the path now printing\n";
+          // std::cout << "path printed now it needs to be published\n";
+        }
+      }
+
+      void local_goal_callback(const geometry_msgs::msg::PoseStamped::SharedPtr goal) {
         this->goal_x = goal->pose.position.x;
         this->goal_y = goal->pose.position.y;
 
         // NOTE
         // Goals are given with respect to base link
         // while storing them, we need to store it in terms of the odom frame
-        // to do that, we first rotate the current goal_x and goal_y in the direction that base link is rotated w.r.t odom
-        // then add odom to the rotated matrix and store
+        // to do that, we first rotate the current goal_x and goal_y in the direction
+        // that base link is rotated w.r.t odom then add odom to the rotated matrix
+        // and store
 
         tf2::Quaternion q;
         double roll, pitch, yaw;
@@ -369,10 +393,12 @@ class PathPlanner : public rclcpp::Node
         tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
         // this returns yaw in radians
 
-        //now to get the vector BG (B = base_link, G = goal)
-        //std trig functions take in radians as inputs
-        this->goal_x = (goal->pose.position.x * std::cos(yaw)) + (goal->pose.position.y * (-std::sin(yaw)));
-        this->goal_y = (goal->pose.position.x * std::sin(yaw)) + (goal->pose.position.y * std::cos(yaw));
+        // now to get the vector BG (B = base_link, G = goal)
+        // std trig functions take in radians as inputs
+        this->goal_x = (goal->pose.position.x * std::cos(yaw)) +
+          (goal->pose.position.y * (-std::sin(yaw)));
+        this->goal_y = (goal->pose.position.x * std::sin(yaw)) +
+          (goal->pose.position.y * std::cos(yaw));
 
         // We have OB (O = odom, B = base_link), from this->odom_to_base
         // we just have to add OB to BG to get OG, which we can store
@@ -380,12 +406,12 @@ class PathPlanner : public rclcpp::Node
         this->goal_y += this->odom_to_base.transform.translation.y;
         // (goal_x, goal_y) forms vector OG
 
+        this->calculate_start_and_goal();
+        this->plan_path();
         this->path_publisher_callback();
       }
 
-      void path_publisher_callback()
-      {
-
+      void path_publisher_callback() {
         this->get_odom_to_map_tf();
         this->odom_to_path = this->odom_to_map;
         this->odom_to_path.header.frame_id = "odom";
