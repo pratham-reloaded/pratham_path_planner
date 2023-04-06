@@ -353,6 +353,12 @@ class PathPlanner : public rclcpp::Node
       }
 
       void plan_path() {
+
+        this->get_odom_to_map_tf();
+        this->odom_to_path = this->odom_to_map;
+        this->odom_to_path.header.frame_id = "odom";
+        this->odom_to_path.child_frame_id = "path_frame";
+
         DStarLite d_star_lite(this->grid);
         {
           std::cout << "trying path planning\n";
@@ -407,11 +413,6 @@ class PathPlanner : public rclcpp::Node
       }
 
       void path_publisher_callback() {
-        this->get_odom_to_map_tf();
-        this->odom_to_path = this->odom_to_map;
-        this->odom_to_path.header.frame_id = "odom";
-        this->odom_to_path.child_frame_id = "path_frame";
-
         // std::cout << "publishing path : \n";
         auto path_local = nav_msgs::msg::Path();
         path_local.header.frame_id = "path_frame";
