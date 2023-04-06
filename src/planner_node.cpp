@@ -39,6 +39,7 @@
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "tf2_ros/transform_listener.h"
+#include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/buffer.h"
 #include "tf2/exceptions.h"
 #include "tf2/LinearMath/Quaternion.h"
@@ -116,7 +117,9 @@ class PathPlanner : public rclcpp::Node
       //tf_listener
       tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
       tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-      // timer_tf = this->create_wall_timer(9000s, std::bind(&PathPlanner::tf_listener, this));
+      tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
+      timer_tf_publisher = this->create_wall_timer(2ms, std::bind(&PathPlanner::tf_broadcaster, this));
 
       std::cout << "initializing anymap\n";
       this->anymap_ptr = std::shared_ptr<grid_map::GridMap>(new grid_map::GridMap);
@@ -142,6 +145,8 @@ class PathPlanner : public rclcpp::Node
       std::vector<Grid> path;
 
 
+      unsigned int counter_path_pub = 0;
+
       // gridmap stuff
       std::shared_ptr<grid_map::GridMap> anymap_ptr;
       std::vector<std::vector<int>> grid;
@@ -149,8 +154,9 @@ class PathPlanner : public rclcpp::Node
 
       //tf_listener
       std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+      std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
       std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
-      rclcpp::TimerBase::SharedPtr timer_tf{nullptr};
+      rclcpp::TimerBase::SharedPtr timer_tf_publisher{nullptr};
 
       float goal_x=4;
       float goal_y=0;
@@ -158,6 +164,7 @@ class PathPlanner : public rclcpp::Node
       geometry_msgs::msg::TransformStamped odom_to_base;
       geometry_msgs::msg::TransformStamped odom_to_map;
       geometry_msgs::msg::TransformStamped map_to_base;
+      geometry_msgs::msg::TransformStamped odom_to_path;
 
       void get_odom_to_base_tf() {
         // lookup the latest transform between odom and base_link
@@ -171,7 +178,11 @@ class PathPlanner : public rclcpp::Node
       void get_map_to_base_tf() {
         this->map_to_base = this->tf_buffer_->lookupTransform("map_link", "base_link", tf2::TimePointZero);
       }
-    
+
+      void tf_broadcaster() {
+        this->odom_to_path.header.stamp = this->get_clock()->now();
+        this->tf_broadcaster_->sendTransform(this->odom_to_path);
+      }
 
       void anymap_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr local_map)
       {
@@ -180,11 +191,11 @@ class PathPlanner : public rclcpp::Node
           this->get_odom_to_map_tf();
           this->get_odom_to_base_tf();
         } catch (const tf2::TransformException &ex) {
-          std::cout << "unable to look up tf. Make sure the localization thingi is running\n";
+          std::cout << "unable to look up tf. Make sure the localization thingi is "
+            "running\n";
         }
 
-
-       grid_map::Position pose(this->map_to_base.transform.translation.x,
+        grid_map::Position pose(this->map_to_base.transform.translation.x,
                                 this->map_to_base.transform.translation.y);
         grid_map::Index ind;
         this->anymap_ptr->getIndex(pose, ind);
@@ -204,8 +215,8 @@ class PathPlanner : public rclcpp::Node
           ind(1) = 319;
         }
         Grid start(ind(0), ind(1), 0, 0, 0, 0);
-        // std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x << std::endl;
-        // Grid goal(0, 319, 0, 0, 0, 0);
+        // std::cout << "setting the goal to " << n - 1 - goal_y << " " << goal_x <<
+        // std::endl; Grid goal(0, 319, 0, 0, 0, 0);
 
         // we have OG stored in (this->goal_x, this->goal_y)
         // we have OM stored in this->odom_to_map
@@ -224,7 +235,8 @@ class PathPlanner : public rclcpp::Node
         float mg_x = this->goal_x - this->odom_to_map.transform.translation.x;
         float mg_y = this->goal_y - this->odom_to_map.transform.translation.y;
 
-        // (mogx, mogy) is MG but with M as a non rotated frame, we can convert this to indices to provide as a goal
+        // (mogx, mogy) is MG but with M as a non rotated frame, we can convert this
+        // to indices to provide as a goal
         float mogx = (mg_x * std::cos(-yaw)) + (mg_y * (-std::sin(-yaw)));
         float mogy = (mg_x * std::sin(-yaw)) + (mg_y * std::cos(-yaw));
 
@@ -245,14 +257,12 @@ class PathPlanner : public rclcpp::Node
 
         Grid goal(goal_ind(0), goal_ind(1), 0, 0, 0, 0);
 
-        std::cout << "setting goal to " << goal_ind(0) << " " << goal_ind(1) <<  "\n";
+        std::cout << "setting goal to " << goal_ind(0) << " " << goal_ind(1) << "\n";
         start.id_ = start.x_ * n + start.y_;
         start.pid_ = start.x_ * n + start.y_;
         goal.id_ = goal.x_ * n + goal.y_;
-        start.h_cost_ = sqrt(powf(start.x_ - goal.x_, 2) + powf(start.y_ - goal.y_, 2));
-
-
-
+        start.h_cost_ =
+          sqrt(powf(start.x_ - goal.x_, 2) + powf(start.y_ - goal.y_, 2));
 
         this->anymap_ptr->setPosition(grid_map::Position(4, 0));
         // std::cout << "received a map\n";
@@ -260,17 +270,18 @@ class PathPlanner : public rclcpp::Node
         conv.fromOccupancyGrid(*local_map, "anymap", *(this->anymap_ptr));
         // std::cout << "added from occupancyGrid to anymap_ptr\n";
 
-        // std::cout << "the matrix size is " << this->anymap_ptr->get("anymap").rows()
-                  // << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
+        // std::cout << "the matrix size is " <<
+        // this->anymap_ptr->get("anymap").rows()
+        // << " " << this->anymap_ptr->get("anymap").cols() << std::endl;
 
         Eigen::MatrixXf unprocessed_grid_map =
           this->anymap_ptr->get("anymap").cast<float>();
 
-/*        grid_map::Position pose_(0, 2);
-        grid_map::Index ind_;
-        this->anymap_ptr->getIndex(pose_, ind_);
-        std::cout << "index of (0, 2) is \n" << ind_ << std::endl;
-*/
+        /*        grid_map::Position pose_(0, 2);
+                  grid_map::Index ind_;
+                  this->anymap_ptr->getIndex(pose_, ind_);
+                  std::cout << "index of (0, 2) is \n" << ind_ << std::endl;
+        */
         // .cast<Eigen::Matrix2f::Scalar>();
         // .cast<float>();
         // std::cout << "got the unprocessed matrix, now processing\n";
@@ -287,14 +298,15 @@ class PathPlanner : public rclcpp::Node
 
         Eigen::MatrixXi int_grid_map = processed_grid_map.cast<int>().transpose();
         this->grid.clear();
-        for(int i=0; i<cols; i++) {
-          const int* begin = &int_grid_map.col(i).data()[0];
-          this->grid.push_back(std::vector<int>(begin, begin+rows));
+        for (int i = 0; i < cols; i++) {
+          const int *begin = &int_grid_map.col(i).data()[0];
+          this->grid.push_back(std::vector<int>(begin, begin + rows));
         }
 
-        // std::cout << " the vector<vector<int>> is of shape " << this->grid.size() << " " << this->grid[0].size() << std::endl;
+        // std::cout << " the vector<vector<int>> is of shape " << this->grid.size()
+        // << " " << this->grid[0].size() << std::endl;
 
- // THIS STUFF IS JUST FOR DEBUGGING
+        // THIS STUFF IS JUST FOR DEBUGGING
         this->anymap_ptr->add("stuff_shown", 0.0);
 
         nav_msgs::msg::OccupancyGrid grid_msg;
@@ -312,9 +324,8 @@ class PathPlanner : public rclcpp::Node
 
         // END OF DEBUGGING STUFF
 
-        // This should be the transform between map_link and base_link converted to indices
-
-
+        // This should be the transform between map_link and base_link converted to
+        // indices
 
         std::cout << "instanciating the path planner\n";
 
@@ -323,14 +334,20 @@ class PathPlanner : public rclcpp::Node
           std::cout << "trying path planning\n";
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
           std::cout << "path planning done? " << path_found << std::endl;
-          // std::cout << "size of the path found " << path_vector.size() << std::endl;
-          this->path = path_vector;
-          // std::cout << "received path of length " << path_vector.size() <<std::endl;
-          // std::cout << "resized the path now printing\n";
-          // std::cout << "path printed now it needs to be published\n";
-          this->path_publisher_callback();
+          // std::cout << "size of the path found " << path_vector.size() <<
+          // std::endl;
+          this->counter_path_pub++;
+          if (this->counter_path_pub == 18) {
+            this->counter_path_pub = 0;
+            this->path = path_vector;
+            std::cout << "received path of length " << path_vector.size()
+
+            <<std::endl; std::cout << "resized the path now printing\n";
+            // std::cout << "path printed now it needs to be published\n";
+            this->path_publisher_callback();
+          }
         }
-      }
+}
 
       void local_goal_callback(const geometry_msgs::msg::PoseStamped::SharedPtr goal)
       {
@@ -362,13 +379,21 @@ class PathPlanner : public rclcpp::Node
         this->goal_x += this->odom_to_base.transform.translation.x;
         this->goal_y += this->odom_to_base.transform.translation.y;
         // (goal_x, goal_y) forms vector OG
+
+        this->path_publisher_callback();
       }
 
       void path_publisher_callback()
       {
+
+        this->get_odom_to_map_tf();
+        this->odom_to_path = this->odom_to_map;
+        this->odom_to_path.header.frame_id = "odom";
+        this->odom_to_path.child_frame_id = "path_frame";
+
         // std::cout << "publishing path : \n";
         auto path_local = nav_msgs::msg::Path();
-        path_local.header.frame_id = "map_link";
+        path_local.header.frame_id = "path_frame";
 
         for(int i=path.size()-1; i>=0; i--){
           geometry_msgs::msg::PoseStamped pose_stamped_msg;
