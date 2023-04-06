@@ -337,28 +337,19 @@ class PathPlanner : public rclcpp::Node
 
         std::cout << "instanciating the path planner\n";
 
-        DStarLite d_star_lite(this->grid);
-        {
-          std::cout << "trying path planning\n";
-          const auto [path_found, path_vector] = d_star_lite.Plan(this->start, this->goal);
-          std::cout << "path planning done? " << path_found << std::endl;
-          // std::cout << "size of the path found " << path_vector.size() <<
-          // std::endl;
-
           // TODO instead of this, compare the new path with the old path and see if it is different
           // if it is different, then publish
-          this->counter_path_pub++;
-          if (this->counter_path_pub == 18) {
-            this->counter_path_pub = 0;
-            this->calculate_start_and_goal();
-            this->plan_path();
-            this->path = path_vector;
-            // std::cout << "received path of length " << path_vector.size()
+        this->counter_path_pub++;
+        if (this->counter_path_pub == 10) {
+          this->counter_path_pub = 0;
+          this->calculate_start_and_goal();
+          this->plan_path();
+          this->path = path_vector;
+          // std::cout << "received path of length " << path_vector.size()
 
-            // <<std::endl; std::cout << "resized the path now printing\n";
-            // std::cout << "path printed now it needs to be published\n";
-            this->path_publisher_callback();
-          }
+          // <<std::endl; std::cout << "resized the path now printing\n";
+          // std::cout << "path printed now it needs to be published\n";
+          this->path_publisher_callback();
         }
       }
 
