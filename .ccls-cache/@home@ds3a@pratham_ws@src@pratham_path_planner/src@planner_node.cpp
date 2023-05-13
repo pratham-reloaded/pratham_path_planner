@@ -44,6 +44,7 @@
 #include "tf2/exceptions.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
+#include "std_msgs/msg/bool.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
@@ -109,6 +110,7 @@ class PathPlanner : public rclcpp::Node
       path_publisher=this->create_publisher<nav_msgs::msg::Path>("path_local",10);
       // path_publish_timer=this->create_wall_timer(50ms, std::bind(&PathPlanner::path_publisher_callback, this));
 
+      path_found_publisher = this->create_publisher<std_msgs::msg::Bool>("path_found", 10);
 
       gridmap_publisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("grid", 10);
 
@@ -132,6 +134,7 @@ class PathPlanner : public rclcpp::Node
   private:
       //Path_publisher
       rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher;
+      rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr path_found_publisher;
       rclcpp::TimerBase::SharedPtr path_publish_timer;
 
       // this is a test to see what the node is perceiving
@@ -366,6 +369,9 @@ class PathPlanner : public rclcpp::Node
           // std::endl;
           this->path = path_vector;
           // std::cout << "received path of length " << path_vector.size()
+          std_msgs::msg::Bool path_found_msg;
+          path_found_msg.data = path_found;
+          this->path_found_publisher->publish(std_msgs::msg::Bool(path_found_msg));
 
           // <<std::endl; std::cout << "resized the path now printing\n";
           // std::cout << "path printed now it needs to be published\n";
