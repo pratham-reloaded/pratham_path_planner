@@ -360,7 +360,7 @@ class PathPlanner : public rclcpp::Node
         this->odom_to_path.header.frame_id = "odom";
         this->odom_to_path.child_frame_id = "path_frame";
 
-        DStarLite d_star_lite(this->grid);
+        AStar d_star_lite(this->grid);
         {
           std::cout << "trying path planning\n";
           const auto [path_found, path_vector] = d_star_lite.Plan(start, goal);
@@ -422,7 +422,7 @@ class PathPlanner : public rclcpp::Node
         path_local.header.frame_id = "path_frame";
 
         // for(int i=path.size()-1; i>=0; i--){
-        for(int i=0; i<=path.size()-1; i++){
+        for(int i=path.size()-1; i>=0; i--){
           geometry_msgs::msg::PoseStamped pose_stamped_msg;
           grid_map::Position position;
           grid_map::Index index(path[i].x_, path[i].y_);
